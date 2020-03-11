@@ -1,0 +1,13 @@
+Please credit Hyptosis and Zabin (only drew 6 frames of the bomb's wick burning) from OGA and respect to the License.
+self: didn't use the bomb.
+
+OGA = opengameart.org
+CC BY 3.0 license.
+
+
+Hero, handle, and key sprites are adapted from Braid assets, copyright Jonathan Blow.
+Used with permission.
+
+
+More sprites and tiles taken from http://opengameart.org/content/dungeon-crawl-32x32-tiles
+CC0 Public Domain license.
