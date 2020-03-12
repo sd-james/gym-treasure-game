@@ -36,6 +36,22 @@ def make_path(root,
     return path
 
 
+class ObservationWrapper(gym.Wrapper):
+
+    def reset(self, **kwargs):
+        super().reset(**kwargs)
+        # use the render function to get the screen
+        screen = self.render(mode='rgb_array')
+        return screen
+
+    def step(self, action):
+        obs, reward, done, info = super().step(action)
+        info['world_state'] = obs
+        # use the render function to get the screen
+        screen = self.render(mode='rgb_array')
+        return screen, reward, done, info
+
+
 class TreasureGame(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array']}
 
