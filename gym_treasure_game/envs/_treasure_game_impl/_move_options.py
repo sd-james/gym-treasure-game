@@ -59,6 +59,8 @@ class go_left_option(_Option):
             return True
         if (self.md.object_type_at_cell(xc - 1, yc) == WALL):
             return True
+        if self.md.is_object_at(xc, yc) or self.md.is_closed_door_at(xc - 1, yc):
+            return True
         if (self.md.object_type_at_cell(xc - 1, yc + 1) == OPEN_SPACE):
             return True
 
@@ -128,6 +130,8 @@ class go_right_option(_Option):
         if (self.md.object_type_at_cell(xc, yc + 1) == LADDER):
             return True
         if (self.md.object_type_at_cell(xc + 1, yc) == WALL):
+            return True
+        if self.md.is_object_at(xc, yc) or self.md.is_closed_door_at(xc + 1, yc):
             return True
         if (self.md.object_type_at_cell(xc + 1, yc + 1) == OPEN_SPACE):
             return True

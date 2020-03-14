@@ -16,6 +16,12 @@ from gym_treasure_game.envs._treasure_game_impl._treasure_game_impl import _Trea
 __author__ = 'Steve James and George Konidaris'
 
 
+def make_env(id: str, **kwargs):
+    """
+    Convenience function for calling gym.make
+    """
+    return gym.make(id, **kwargs)
+
 def make_path(root,
               *args):
     """

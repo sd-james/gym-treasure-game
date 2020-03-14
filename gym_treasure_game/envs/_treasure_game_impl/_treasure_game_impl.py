@@ -388,6 +388,22 @@ class _TreasureGameImpl:
 
         return state_desc
 
+    def is_object_at(self, xc, yc):
+        for obj in self.objects:
+            if obj.cx == xc and obj.cy == yc:
+                if isinstance(obj, handle) or (isinstance(obj, door) and obj.door_closed()) or isinstance(obj,
+                                                                                                          bolt) or isinstance(
+                        obj, goldcoin) or isinstance(obj, key):
+                    return True
+        return False
+
+    def is_closed_door_at(self, xc, yc):
+        for obj in self.objects:
+            if obj.cx == xc and obj.cy == yc:
+                if isinstance(obj, door) and obj.door_closed():
+                    return True
+        return False
+
     def player_got_key(self):
         for obj in self.player_bag:
             if (isinstance(obj, key)):
