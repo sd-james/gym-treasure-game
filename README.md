@@ -12,38 +12,6 @@ Requirements:
 - NumPy
 - PyGame
 
-Please use this bibtex if you want to cite this repository in your publications:
-
-```
-@misc{gym_minigrid,
-  author = {Chevalier-Boisvert, Maxime and Willems, Lucas and Pal, Suman},
-  title = {Minimalistic Gridworld Environment for OpenAI Gym},
-  year = {2018},
-  publisher = {GitHub},
-  journal = {GitHub repository},
-  howpublished = {\url{https://github.com/maximecb/gym-minigrid}},
-}
-```
-
-List of publications & submissions using Treasure Game (please open a pull request to add missing entries):
-- [Learning to Request Guidance in Emergent Communication](https://arxiv.org/pdf/1912.05525.pdf) (University of Amsterdam, Dec 2019)
-- [Working Memory Graphs](https://arxiv.org/abs/1911.07141) (MSR, Nov 2019)
-
-## Installation
-
-There is now a [pip package](https://pypi.org/project/gym-treasure-game/) available, which is updated periodically:
-
-```
-pip3 install gym-treasure-game
-```
-
-Alternatively, to get the latest version of the game, you can clone this repository and install the dependencies with `pip3`:
-
-```
-git clone https://github.com/sd-james/gym-treasure-game.git
-cd gym-treasure-game
-pip3 install -e .
-```
 
 ## Basic Usage
 
