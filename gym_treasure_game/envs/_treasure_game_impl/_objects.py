@@ -8,7 +8,7 @@ Created on Wed Feb 12 00:16:00 2014
 import math
 import random
 
-from gym_treasure_game.envs._treasure_game_impl._scale import xscale, yscale
+from gym_treasure_game.envs._treasure_game_impl._constants import X_SCALE, Y_SCALE
 
 OPEN_SPACE = ' '
 DOOR = 'D'
@@ -18,12 +18,12 @@ class _GameObject:
     def __init__(self, cx, cy, tcx, tcy):
         self.cx = cx
         self.cy = cy
-        self.x = cx * xscale
-        self.y = cy * yscale
-        self.radius = xscale/2
+        self.x = cx * X_SCALE
+        self.y = cy * Y_SCALE
+        self.radius = X_SCALE / 2
 
-        self.world_height = tcy * yscale
-        self.world_width = tcx * xscale
+        self.world_height = tcy * Y_SCALE
+        self.world_width = tcx * X_SCALE
         
         self.trigger_true = []
         self.trigger_true_vals = []
@@ -34,19 +34,19 @@ class _GameObject:
     def move_to(self, cx, cy):
         self.cx = cx
         self.cy = cy
-        self.x = cx * xscale
-        self.y = cy * yscale   
+        self.x = cx * X_SCALE
+        self.y = cy * Y_SCALE
         
     def move_to_xy(self, x, y):
         self.x = x
         self.y = y
-        self.cx = int(x / xscale)
-        self.cy = int(y / yscale)
+        self.cx = int(x / X_SCALE)
+        self.cy = int(y / Y_SCALE)
         
     def near_enough(self, x, y):
         
-        centerx = self.x + (xscale / 2)
-        centery = self.y + (yscale / 2)
+        centerx = self.x + (X_SCALE / 2)
+        centery = self.y + (Y_SCALE / 2)
         dist = math.pow(x - centerx, 2) + math.pow(y - centery, 2)
         if(math.sqrt(dist) < self.radius):
             return True
@@ -102,7 +102,7 @@ class _GameObject:
     def get_state_descriptors(self):
         return []
 
-class handle(_GameObject):
+class Handle(_GameObject):
     def __init__(self, cx, cy, tcx, tcy, up = True, left_facing = False):
         _GameObject.__init__(self, cx, cy, tcx, tcy)
         self.up = up
@@ -112,7 +112,7 @@ class handle(_GameObject):
             self.angle = random.uniform(0.85, 1.0)
         else:
             self.angle = random.uniform(0, 0.15)
-        self.radius = xscale*0.75
+        self.radius = X_SCALE * 0.75
             
     def flip(self):
         
@@ -161,7 +161,7 @@ class handle(_GameObject):
         return ['angle']
         
 
-class bolt(_GameObject):
+class Bolt(_GameObject):
     def __init__(self, cx, cy, tcx, tcy, locked=False):
         _GameObject.__init__(self, cx, cy, tcx, tcy)
         self.locked = locked
@@ -192,7 +192,7 @@ class bolt(_GameObject):
     def get_state_descriptors(self):
         return ['locked']
         
-class goldcoin(_GameObject):
+class GoldCoin(_GameObject):
     def __init__(self, cx, cy, tcx, tcy):
         _GameObject.__init__(self, cx, cy, tcx, tcy)
         
@@ -205,7 +205,7 @@ class goldcoin(_GameObject):
     def get_state_descriptors(self):
         return ['x', 'y']
 
-class key(_GameObject):
+class Key(_GameObject):
     def __init__(self, cx, cy, tcx, tcy):
         _GameObject.__init__(self, cx, cy, tcx, tcy)
         
@@ -218,7 +218,7 @@ class key(_GameObject):
     def get_state_descriptors(self):
         return ['x', 'y']
 
-class door(_GameObject):
+class Door(_GameObject):
     def __init__(self, cx, cy, tcx, tcy, game_map, closed = True):
         _GameObject.__init__(self, cx, cy, tcx, tcy)
         self.game_map = game_map
@@ -248,8 +248,8 @@ class door(_GameObject):
         if(self.closed):
             character = DOOR
             
-        row_chars = [character]*xscale
-        for y in range(0, yscale):
-            self.game_map[self.cy*yscale + y][self.cx*xscale:(self.cx + 1)*xscale] = row_chars            
+        row_chars = [character] * X_SCALE
+        for y in range(0, Y_SCALE):
+            self.game_map[self.cy * Y_SCALE + y][self.cx * X_SCALE:(self.cx + 1) * X_SCALE] = row_chars
             
     

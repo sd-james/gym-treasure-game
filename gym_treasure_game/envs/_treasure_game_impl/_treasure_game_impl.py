@@ -3,13 +3,13 @@ import random
 import pygame
 import numpy as np
 from gym_treasure_game.envs._treasure_game_impl import _treasure_game_drawer
-from gym_treasure_game.envs._treasure_game_impl._actions import ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT, \
-    ACTION_JUMP, ACTION_INTERACT
-from gym_treasure_game.envs._treasure_game_impl._cell_types import WALL, LADDER, OPEN_SPACE, DOOR
 from gym_treasure_game.envs._treasure_game_impl._move_options import go_left_option, go_right_option, up_ladder_option, \
     down_ladder_option, interact_option, down_left_option, down_right_option, jump_left_option, jump_right_option
-from gym_treasure_game.envs._treasure_game_impl._objects import door, handle, bolt, key, goldcoin
-from gym_treasure_game.envs._treasure_game_impl._scale import xscale, yscale
+from gym_treasure_game.envs._treasure_game_impl._objects import Door, Handle, Bolt, Key, GoldCoin
+from gym_treasure_game.envs._treasure_game_impl._constants import X_SCALE, Y_SCALE, OPEN_SPACE, WALL, DOOR, LADDER, \
+    ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT, ACTION_JUMP, ACTION_INTERACT, AGENT_DOOR_CLOSED, AGENT_GOLD, \
+    AGENT_BOLT_LOCKED, AGENT_DOOR_OPEN, AGENT_BOLT_UNLOCKED, AGENT_HANDLE_DOWN, AGENT_HANDLE_UP, AGENT_KEY, \
+    AGENT_OPEN_SPACE, AGENT_WALL, AGENT_LADDER, AGENT_NORMALISE_CONSTANT
 
 JUMP_REWARD = -5
 STEP_REWARD = -1
@@ -32,11 +32,11 @@ class _TreasureGameImpl:
 
         self.player_bag = []
 
-        self.x_incr = xscale // 10
-        self.y_incr = yscale // 10
+        self.x_incr = X_SCALE // 10
+        self.y_incr = Y_SCALE // 10
         self.jump_ticker = 0
-        self.player_width = xscale // 2
-        self.player_height = yscale
+        self.player_width = X_SCALE // 2
+        self.player_height = Y_SCALE
         self.facing_right = True
 
         self.total_actions = 0
@@ -52,11 +52,11 @@ class _TreasureGameImpl:
 
         self.player_bag = []
 
-        self.x_incr = xscale // 10
-        self.y_incr = yscale // 10
+        self.x_incr = X_SCALE // 10
+        self.y_incr = Y_SCALE // 10
         self.jump_ticker = 0
-        self.player_width = xscale // 2
-        self.player_height = yscale
+        self.player_width = X_SCALE // 2
+        self.player_height = Y_SCALE
         self.facing_right = True
 
         self.total_actions = 0
@@ -67,11 +67,11 @@ class _TreasureGameImpl:
         self.bolts = []
 
         for obj in self.objects:
-            if (isinstance(obj, door)):
+            if (isinstance(obj, Door)):
                 self.doors.append(obj)
-            elif (isinstance(obj, handle)):
+            elif (isinstance(obj, Handle)):
                 self.handles.append(obj)
-            elif (isinstance(obj, bolt)):
+            elif (isinstance(obj, Bolt)):
                 self.bolts.append(obj)
 
         f = open(fname, 'r')
@@ -121,26 +121,26 @@ class _TreasureGameImpl:
                 closed = False
                 if (words[3] == 'True'):
                     closed = True
-                d = door(cx, cy, tcx, tcy, self.map, closed)
+                d = Door(cx, cy, tcx, tcy, self.map, closed)
                 o_list.append(d)
             elif (line.startswith("key")):
                 words = line.split()
                 cx = int(words[1])
                 cy = int(words[2])
-                k = key(cx, cy, tcx, tcy)
+                k = Key(cx, cy, tcx, tcy)
                 o_list.append(k)
             elif (line.startswith("bolt")):
                 words = line.split()
                 cx = int(words[1])
                 cy = int(words[2])
                 locked = (words[3] == 'True')
-                b = bolt(cx, cy, tcx, tcy, locked)
+                b = Bolt(cx, cy, tcx, tcy, locked)
                 o_list.append(b)
             elif (line.startswith("gold")):
                 words = line.split()
                 cx = int(words[1])
                 cy = int(words[2])
-                g = goldcoin(cx, cy, tcx, tcy)
+                g = GoldCoin(cx, cy, tcx, tcy)
                 o_list.append(g)
             elif (line.startswith("handle")):
                 words = line.split()
@@ -148,7 +148,7 @@ class _TreasureGameImpl:
                 cy = int(words[2])
                 up = (words[3] == 'True')
                 left_facing = (cx > self.cell_width / 2)
-                h = handle(cx, cy, tcx, tcy, up, left_facing)
+                h = Handle(cx, cy, tcx, tcy, up, left_facing)
                 o_list.append(h)
 
         f.close()
@@ -156,13 +156,13 @@ class _TreasureGameImpl:
 
     def player_initial_position(self):
 
-        noise_offset_x = int(random.gauss(0, xscale / 24))
-        noise_offset_y = int(abs(random.gauss(0, yscale / 36)))
+        noise_offset_x = int(random.gauss(0, X_SCALE / 24))
+        noise_offset_y = int(abs(random.gauss(0, Y_SCALE / 36)))
 
         for y in range(0, self.cell_height):
             for x in range(0, self.cell_width):
                 if (self.description[y][x] != WALL):
-                    return ((x * xscale) + (xscale // 2) + noise_offset_x, (y * yscale) + noise_offset_y)
+                    return ((x * X_SCALE) + (X_SCALE // 2) + noise_offset_x, (y * Y_SCALE) + noise_offset_y)
 
         return (0, 0)
 
@@ -185,8 +185,8 @@ class _TreasureGameImpl:
         self.cell_width = len(desc[0])
         self.cell_height = len(desc)
 
-        self.width = self.cell_width * xscale
-        self.height = self.cell_height * yscale
+        self.width = self.cell_width * X_SCALE
+        self.height = self.cell_height * Y_SCALE
 
         return desc
 
@@ -197,9 +197,9 @@ class _TreasureGameImpl:
         for y in range(0, self.cell_height):
             row_so_far = []
             for x in range(0, self.cell_width):
-                pos_char = [self.description[y][x]] * xscale
+                pos_char = [self.description[y][x]] * X_SCALE
                 row_so_far = row_so_far + pos_char
-            for yz in range(0, yscale):
+            for yz in range(0, Y_SCALE):
                 retmap.append(row_so_far)
 
         return retmap
@@ -214,8 +214,8 @@ class _TreasureGameImpl:
         return self.map[y][x]
 
     def object_type_at_cell(self, xc, yc):
-        x = (xc * xscale) + (xscale // 2)
-        y = (yc * yscale) + (yscale // 2)
+        x = (xc * X_SCALE) + (X_SCALE // 2)
+        y = (yc * Y_SCALE) + (Y_SCALE // 2)
         return self.object_type_at(x, y)
 
     def up_clear(self):
@@ -231,7 +231,7 @@ class _TreasureGameImpl:
         if self.playery <= 1:
             return False
 
-        for yoff in [-self.y_incr, 0, yscale - self.y_incr]:
+        for yoff in [-self.y_incr, 0, Y_SCALE - self.y_incr]:
             for xoff in [-self.player_width // 2, self.player_width // 2]:
                 if (self.object_type_at(self.playerx + xoff, self.playery + yoff) == LADDER):
                     return True
@@ -239,7 +239,7 @@ class _TreasureGameImpl:
         return False
 
     def can_go_down(self):
-        for yoff in np.arange(0, yscale + self.y_incr):
+        for yoff in np.arange(0, Y_SCALE + self.y_incr):
             for xoff in [-self.player_width // 2, self.player_width // 2]:
                 if (self.object_type_at(self.playerx + xoff, self.playery + yoff) == LADDER):
                     return True
@@ -247,7 +247,7 @@ class _TreasureGameImpl:
 
     def can_go_left(self):
 
-        for yoff in [self.y_incr, yscale - self.y_incr]:
+        for yoff in [self.y_incr, Y_SCALE - self.y_incr]:
             if (self.object_type_at(self.playerx - (self.player_width // 2) - self.x_incr,
                                     self.playery + yoff) == WALL):
                 return False
@@ -259,7 +259,7 @@ class _TreasureGameImpl:
 
     def can_go_right(self):
 
-        for yoff in [self.y_incr, yscale - self.y_incr]:
+        for yoff in [self.y_incr, Y_SCALE - self.y_incr]:
             if (self.object_type_at(self.playerx + (self.player_width // 2) + self.x_incr,
                                     self.playery + yoff) == WALL):
                 return False
@@ -271,7 +271,7 @@ class _TreasureGameImpl:
 
     def can_fall(self):
         for xoff in [-self.player_width // 2 + 2, -2 + self.player_width // 2]:
-            for yoff in [0, yscale + 2]:
+            for yoff in [0, Y_SCALE + 2]:
                 if (self.object_type_at(self.playerx + xoff, self.playery + yoff) != OPEN_SPACE):
                     return False;
         return True
@@ -309,10 +309,10 @@ class _TreasureGameImpl:
 
         elif (action == ACTION_INTERACT):
             for obj in self.objects:
-                if (obj.near_enough(self.playerx, self.playery + yscale / 2)):
-                    if (isinstance(obj, handle)):
+                if (obj.near_enough(self.playerx, self.playery + Y_SCALE / 2)):
+                    if (isinstance(obj, Handle)):
                         obj.flip()
-                    elif (isinstance(obj, bolt)):
+                    elif (isinstance(obj, Bolt)):
                         if (self.player_got_key()):
                             self.try_unlock(obj)
                             self.drop_key()
@@ -337,8 +337,8 @@ class _TreasureGameImpl:
             self.playery = self.playery + ydelta
 
         for obj in self.objects:
-            if (isinstance(obj, key) or isinstance(obj, goldcoin)):
-                if (obj.near_enough(self.playerx, self.playery + yscale / 2)):
+            if (isinstance(obj, Key) or isinstance(obj, GoldCoin)):
+                if (obj.near_enough(self.playerx, self.playery + Y_SCALE / 2)):
                     obj.move_to(self.cell_width - 1 - len(self.player_bag), self.cell_height - 1)
                     self.player_bag.append(obj)
 
@@ -391,28 +391,28 @@ class _TreasureGameImpl:
     def is_object_at(self, xc, yc):
         for obj in self.objects:
             if obj.cx == xc and obj.cy == yc:
-                if isinstance(obj, handle) or (isinstance(obj, door) and obj.door_closed()) or isinstance(obj,
-                                                                                                          bolt) or isinstance(
-                        obj, goldcoin) or isinstance(obj, key):
+                if isinstance(obj, Handle) or (isinstance(obj, Door) and obj.door_closed()) or isinstance(obj,
+                                                                                                          Bolt) or isinstance(
+                        obj, GoldCoin) or isinstance(obj, Key):
                     return True
         return False
 
     def is_closed_door_at(self, xc, yc):
         for obj in self.objects:
             if obj.cx == xc and obj.cy == yc:
-                if isinstance(obj, door) and obj.door_closed():
+                if isinstance(obj, Door) and obj.door_closed():
                     return True
         return False
 
     def player_got_key(self):
         for obj in self.player_bag:
-            if (isinstance(obj, key)):
+            if (isinstance(obj, Key)):
                 return True
         return False
 
     def player_got_goldcoin(self):
         for obj in self.player_bag:
-            if (isinstance(obj, goldcoin)):
+            if (isinstance(obj, GoldCoin)):
                 return True
         return False
 
@@ -422,14 +422,14 @@ class _TreasureGameImpl:
 
     def drop_key(self):
         for obj in self.player_bag:
-            if (isinstance(obj, key)):
+            if (isinstance(obj, Key)):
                 self.player_bag.remove(obj)
                 obj.move_to(-1, -1)
                 return
 
     def get_player_cell(self):
-        xc = int(self.playerx // xscale)
-        yc = int((self.playery + (yscale // 2)) // yscale)
+        xc = int(self.playerx // X_SCALE)
+        yc = int((self.playery + (Y_SCALE // 2)) // Y_SCALE)
 
         return (xc, yc)
 
@@ -449,25 +449,62 @@ class _TreasureGameImpl:
 
         for obj in self.objects:
             if (obj.has_state()):
-                if (isinstance(obj, goldcoin) or isinstance(obj, key)):
+                if (isinstance(obj, GoldCoin) or isinstance(obj, Key)):
                     x_label = type(obj).__name__ + ".x"
                     y_label = type(obj).__name__ + ".y"
                     xval = int(state[desc.index(x_label)] * self.width)
                     yval = int(state[desc.index(y_label)] * self.height)
                     obj.move_to_xy(xval, yval)
-                elif (isinstance(obj, handle)):
+                elif (isinstance(obj, Handle)):
                     label = 'handle' + str(handle_no) + '.angle'
                     angle = state[desc.index(label)]
                     obj.set_angle(angle)
                     obj.previously_triggered = True
                     handle_no = handle_no + 1
-                elif (isinstance(obj, bolt)):
+                elif (isinstance(obj, Bolt)):
                     val = (state[desc.index("bolt.locked")] > 0.5)
                     obj.set_val(val)
 
         for obj in self.objects:
-            if (isinstance(obj, handle)):
+            if (isinstance(obj, Handle)):
                 self.previously_triggered = False
+
+
+    def _get_object(self, cell_x, cell_y):
+        for o in self.objects:
+            if o.cx == cell_x and o.cy == cell_y:
+                if isinstance(o, Door):
+                    return AGENT_DOOR_CLOSED if o.closed else AGENT_DOOR_OPEN
+                if isinstance(o, GoldCoin):
+                    return AGENT_GOLD
+                if isinstance(o, Bolt):
+                    return AGENT_BOLT_LOCKED if o.locked else AGENT_BOLT_UNLOCKED
+                if isinstance(o, Key):
+                    return AGENT_KEY
+                if isinstance(o, Handle):
+                    return AGENT_HANDLE_UP if o.is_up() else AGENT_HANDLE_DOWN
+                else:
+                    raise ValueError
+
+        type = self.object_type_at_cell(cell_x, cell_y)
+        if type == OPEN_SPACE:
+            return AGENT_OPEN_SPACE
+        elif type == WALL:
+            return AGENT_WALL
+        elif type == LADDER:
+            return AGENT_LADDER
+        else:
+            raise ValueError
+
+    def current_observation(self):
+        state_vec = []
+        (cell_x, cell_y) = self.get_player_cell()
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                state_vec.append(self._get_object(cell_x + dx, cell_y + dy) / AGENT_NORMALISE_CONSTANT)  # normalise
+
+        state_vec.extend([int(self.player_got_key()), int(self.player_got_goldcoin())])
+        return np.array(state_vec)
 
 
 def create_options(md, drawer=None):

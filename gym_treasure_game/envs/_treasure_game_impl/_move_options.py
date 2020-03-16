@@ -4,13 +4,11 @@ Created on Wed Feb 19 18:35:46 2014
 
 @author: gdk
 """
-from gym_treasure_game.envs._treasure_game_impl._actions import ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT, \
-    ACTION_JUMP, ACTION_INTERACT, ACTION_NOP
-from gym_treasure_game.envs._treasure_game_impl._cell_types import OPEN_SPACE, LADDER, WALL
 
 from gym_treasure_game.envs._treasure_game_impl._option import _Option
-from gym_treasure_game.envs._treasure_game_impl._objects import handle, bolt
-from gym_treasure_game.envs._treasure_game_impl._scale import xscale, yscale
+from gym_treasure_game.envs._treasure_game_impl._objects import Handle, Bolt
+from gym_treasure_game.envs._treasure_game_impl._constants import X_SCALE, Y_SCALE, OPEN_SPACE, WALL, LADDER, \
+    ACTION_NOP, ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT, ACTION_JUMP, ACTION_INTERACT
 
 
 class go_left_option(_Option):
@@ -67,7 +65,7 @@ class go_left_option(_Option):
         return False
 
     def close_enough_to(self, tcell):
-        tx = (tcell[0] * xscale) + (xscale / 2)
+        tx = (tcell[0] * X_SCALE) + (X_SCALE / 2)
         diff = abs(tx - self.md.playerx)
         return (diff < self.md.x_incr)
 
@@ -139,7 +137,7 @@ class go_right_option(_Option):
         return False
 
     def close_enough_to(self, tcell):
-        tx = (tcell[0] * xscale) + (xscale / 2)
+        tx = (tcell[0] * X_SCALE) + (X_SCALE / 2)
         diff = abs(tx - self.md.playerx)
         return (diff < self.md.x_incr)
 
@@ -221,7 +219,7 @@ class down_left_option(_Option):
         return (xc, yc)
 
     def close_enough_x(self, tcell):
-        tx = (tcell[0] * xscale) + (xscale / 2)
+        tx = (tcell[0] * X_SCALE) + (X_SCALE / 2)
         diff = abs(tx - self.md.playerx)
         return (diff < self.md.x_incr)
 
@@ -287,7 +285,7 @@ class jump_left_option(_Option):
         return True
 
     def close_enough_x(self, tcell):
-        tx = (tcell[0] * xscale) + (xscale / 2)
+        tx = (tcell[0] * X_SCALE) + (X_SCALE / 2)
         diff = abs(tx - self.md.playerx)
         return (diff < self.md.x_incr)
 
@@ -357,7 +355,7 @@ class jump_right_option(_Option):
         return True
 
     def close_enough_x(self, tcell):
-        tx = (tcell[0] * xscale) + (xscale / 2)
+        tx = (tcell[0] * X_SCALE) + (X_SCALE / 2)
         diff = abs(tx - self.md.playerx)
         return (diff < self.md.x_incr)
 
@@ -416,7 +414,7 @@ class down_right_option(_Option):
         return (xc, yc)
 
     def close_enough_x(self, tcell):
-        tx = (tcell[0] * xscale) + (xscale / 2)
+        tx = (tcell[0] * X_SCALE) + (X_SCALE / 2)
         diff = abs(tx - self.md.playerx)
         return (diff < self.md.x_incr)
 
@@ -445,10 +443,10 @@ class interact_option(_Option):
 
     def can_run(self):
         for obj in self.md.objects:
-            if (obj.near_enough(self.md.playerx, self.md.playery + yscale / 2)):
-                if (isinstance(obj, handle)):
+            if (obj.near_enough(self.md.playerx, self.md.playery + Y_SCALE / 2)):
+                if (isinstance(obj, Handle)):
                     return True
-                elif (isinstance(obj, bolt)):
+                elif (isinstance(obj, Bolt)):
                     if (self.md.player_got_key()):
                         return True
 

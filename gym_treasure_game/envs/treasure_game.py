@@ -22,6 +22,7 @@ def make_env(id: str, **kwargs):
     """
     return gym.make(id, **kwargs)
 
+
 def make_path(root,
               *args):
     """
@@ -69,7 +70,7 @@ class TreasureGame(gym.Env):
 
     def __init__(self):
         """
-        Create a new instantiation of the Threasure Game
+        Create a new instantiation of the Treasure Game
         """
         dir = os.path.dirname(os.path.realpath(__file__))
         dir = make_path(dir, '_treasure_game_impl')
@@ -81,6 +82,7 @@ class TreasureGame(gym.Env):
         s = self._env.get_state()
         self.observation_space = Box(np.float32(0.0), np.float32(1.0), shape=(len(s),))
         self.viewer = None
+        self.local_viewer = None
 
     def reset(self):
         self._env.reset_game()
