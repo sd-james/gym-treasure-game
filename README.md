@@ -7,7 +7,7 @@ G.D. Konidaris, L.P. Kaelbling, and T. Lozano-Perez. *Symbol Acquisition for Pro
 
 To ensure that the dynamics remain precisely that of the original paper, I have not modified the core code in any way. 
 Changes that were made include upgrading from Python2 to Python3, and redoing the sprites (which are used with permission 
-from Jonathan Blow.)
+from Jonathan Blow).
 
 
 ## Installing
