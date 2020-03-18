@@ -29,9 +29,9 @@ pip install -e .
 After installing the environment, it can simply be used in the standard gym-like fashion:
 
 ```python
-from gym_treasure_game import make_env  # convenience function
+import gym
 
-env = make_env('treasure_game-v0')
+env = gym.make('treasure_game-v0')
 for episode in range(5):
     state = env.reset()
     for _ in range(100):
@@ -47,9 +47,9 @@ for episode in range(5):
 By default, the state space is given by a vector describing the position of the agent, and the state of the objects in the world. If you would like to use the pixel information as the state space, you can use the `ObservationWrapper` provided like so 
 
 ```python
-from gym_treasure_game import make_env
+import gym
 from gym_treasure_game.envs.treasure_game import ObservationWrapper
 
-env = ObservationWrapper(make_env('treasure_game-v0'))
+env = ObservationWrapper(gym.make('treasure_game-v0'))
 obs = env.reset()  # returns the RGB array
 ```
