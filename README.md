@@ -3,9 +3,14 @@
 The Treasure Game is a video game in which an agent must navigate a dungeon to collect gold,
 and then return to the top of the screen to succeed. The details of the game were first described in this paper: 
 
-
 G.D. Konidaris, L.P. Kaelbling, and T. Lozano-Perez. *Symbol Acquisition for Probabilistic High-Level Planning*. In Proceedings of the Twenty Fourth International Joint Conference on Artificial Intelligence, pages 3619-3627, July 2015.
 
+To ensure that the dynamics remain precisely that of the original paper, I have not modified the core code in any way. 
+Changes that were made include upgrading from Python2 to Python3, and redoing the sprites (which are used with permission 
+from Jonathan Blow.)
+
+
+## Installing
 
 Requirements:
 - Python 3 (3.7)
@@ -53,3 +58,7 @@ from gym_treasure_game.envs.treasure_game import ObservationWrapper
 env = ObservationWrapper(gym.make('treasure_game-v0'))
 obs = env.reset()  # returns the RGB array
 ```
+
+## Acknowledgements
+
+With thanks to [George Konidaris](http://cs.brown.edu/people/gdk) and [Cam Allen](http://camallen.net/).
