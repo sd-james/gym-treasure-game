@@ -8,10 +8,13 @@ G.D. Konidaris, L.P. Kaelbling, and T. Lozano-Perez. *Symbol Acquisition for Pro
 
 
 Requirements:
-- Python 3
-- OpenAI Gym
-- NumPy
-- PyGame
+- Python 3 (3.7)
+- OpenAI Gym (0.15.6)
+- NumPy (1.18.1)
+- PyGame (1.9.6)
+
+The combination of package versions above is guaranteed to work, but there should be no issue with using any new version
+of the above.
 
 To install the environment, clone this repo and install it with pip:
 
