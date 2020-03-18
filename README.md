@@ -43,7 +43,7 @@ for episode in range(5):
 
 By default, the state space is given by a vector describing the position of the agent, and the state of the objects in the world. If you would like to use the pixel information as the state space, you can use the `ObservationWrapper` provided like so 
 
-```
+```python
 from gym_treasure_game import make_env
 from gym_treasure_game.envs.treasure_game import ObservationWrapper
 
