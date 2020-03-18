@@ -62,7 +62,7 @@ class TreasureGame(gym.Env):
 
     def __init__(self):
         """
-        Create a new instantiation of the Threasure Game
+        Create a new instantiation of the Treasure Game
         """
         dir = os.path.dirname(os.path.realpath(__file__))
         dir = make_path(dir, '_treasure_game_impl')

@@ -1,3 +1,4 @@
+import os
 import random
 
 import pygame
@@ -16,6 +17,17 @@ STEP_REWARD = -1
 
 
 class _TreasureGameImpl:
+
+    @staticmethod
+    def make_default():
+        """
+        Create the default game
+        """
+        dir = os.path.dirname(os.path.realpath(__file__))
+        dir = os.path.join(dir, '_treasure_game_impl')
+        env = _TreasureGameImpl(os.path.join(dir, 'domain.txt'), os.path.join(dir, 'domain-objects.txt'),
+                                os.path.join(dir, 'domain-interactions.txt'))
+        return env
 
     def __init__(self, domain_file, object_file, interaction_file):
 
