@@ -1,5 +1,4 @@
 import os
-from typing import Any, List
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"  # sorry PyGame
 
