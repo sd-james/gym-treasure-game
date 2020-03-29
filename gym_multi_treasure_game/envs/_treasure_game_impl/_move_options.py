@@ -5,9 +5,9 @@ Created on Wed Feb 19 18:35:46 2014
 @author: gdk
 """
 
-from gym_treasure_game.envs._treasure_game_impl._option import _Option
-from gym_treasure_game.envs._treasure_game_impl._objects import Handle, Bolt
-from gym_treasure_game.envs._treasure_game_impl._constants import X_SCALE, Y_SCALE, OPEN_SPACE, WALL, LADDER, \
+from gym_multi_treasure_game.envs._treasure_game_impl._option import _Option
+from gym_multi_treasure_game.envs._treasure_game_impl._objects import Handle, Bolt
+from gym_multi_treasure_game.envs._treasure_game_impl._constants import X_SCALE, Y_SCALE, OPEN_SPACE, WALL, LADDER, \
     ACTION_NOP, ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT, ACTION_JUMP, ACTION_INTERACT
 
 

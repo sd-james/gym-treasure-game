@@ -10,8 +10,8 @@ import pygame
 from gym.envs.classic_control import rendering
 from gym.spaces import Discrete, Box
 
-from gym_treasure_game.envs._treasure_game_impl._treasure_game_drawer import _TreasureGameDrawer
-from gym_treasure_game.envs._treasure_game_impl._treasure_game_impl import _TreasureGameImpl, create_options
+from gym_multi_treasure_game.envs._treasure_game_impl._treasure_game_drawer import _TreasureGameDrawer
+from gym_multi_treasure_game.envs._treasure_game_impl._treasure_game_impl import _TreasureGameImpl, create_options
 
 __author__ = 'Steve James and George Konidaris'
 
@@ -41,6 +41,14 @@ def make_path(root,
             path += '/'
         path += element
     return path
+
+def get_dir_name(file):
+    """
+    Get the directory of the given file
+    :param file: the file
+    :return: the file's directory
+    """
+    return os.path.dirname(os.path.realpath(file))
 
 
 class ObservationWrapper(gym.Wrapper):
@@ -128,8 +136,9 @@ if __name__ == '__main__':
     env = TreasureGame()
     for episode in range(5):
         state = env.reset()
-        for _ in range(100):
-            action = env.action_space.sample()
+        for _ in range(1000):
+            mask = env.available_mask
+            action = np.random.choice(np.arange(env.action_space.n), p=mask / mask.sum())
             next_state, reward, done, _ = env.step(action)
             env.render('human')
             if done:

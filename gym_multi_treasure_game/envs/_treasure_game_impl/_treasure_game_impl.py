@@ -2,11 +2,11 @@ import random
 
 import pygame
 import numpy as np
-from gym_treasure_game.envs._treasure_game_impl import _treasure_game_drawer
-from gym_treasure_game.envs._treasure_game_impl._move_options import go_left_option, go_right_option, up_ladder_option, \
+from gym_multi_treasure_game.envs._treasure_game_impl import _treasure_game_drawer
+from gym_multi_treasure_game.envs._treasure_game_impl._move_options import go_left_option, go_right_option, up_ladder_option, \
     down_ladder_option, interact_option, down_left_option, down_right_option, jump_left_option, jump_right_option
-from gym_treasure_game.envs._treasure_game_impl._objects import Door, Handle, Bolt, Key, GoldCoin
-from gym_treasure_game.envs._treasure_game_impl._constants import X_SCALE, Y_SCALE, OPEN_SPACE, WALL, DOOR, LADDER, \
+from gym_multi_treasure_game.envs._treasure_game_impl._objects import Door, Handle, Bolt, Key, GoldCoin
+from gym_multi_treasure_game.envs._treasure_game_impl._constants import X_SCALE, Y_SCALE, OPEN_SPACE, WALL, DOOR, LADDER, \
     ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT, ACTION_JUMP, ACTION_INTERACT, AGENT_DOOR_CLOSED, AGENT_GOLD, \
     AGENT_BOLT_LOCKED, AGENT_DOOR_OPEN, AGENT_BOLT_UNLOCKED, AGENT_HANDLE_DOWN, AGENT_HANDLE_UP, AGENT_KEY, \
     AGENT_OPEN_SPACE, AGENT_WALL, AGENT_LADDER, AGENT_NORMALISE_CONSTANT

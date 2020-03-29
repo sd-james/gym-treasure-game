@@ -1,0 +1,5 @@
+handle 0 True door 0 True
+handle 0 False door 0 False
+bolt 0 True door 1 True
+bolt 0 False door 1 False
+

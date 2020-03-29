@@ -13,14 +13,14 @@ from pygame.locals import *
 
 import os
 
-from gym_treasure_game.envs._treasure_game_impl._objects import Handle, Door, Key, GoldCoin, Bolt
-from gym_treasure_game.envs._treasure_game_impl._constants import X_SCALE, Y_SCALE, OPEN_SPACE, WALL, LADDER, \
+from gym_multi_treasure_game.envs._treasure_game_impl._objects import Handle, Door, Key, GoldCoin, Bolt
+from gym_multi_treasure_game.envs._treasure_game_impl._constants import X_SCALE, Y_SCALE, OPEN_SPACE, WALL, LADDER, \
     AGENT_WALL, AGENT_OPEN_SPACE, AGENT_DOOR_OPEN, AGENT_DOOR_CLOSED, AGENT_GOLD, AGENT_LADDER, AGENT_BOLT_LOCKED, \
     AGENT_BOLT_UNLOCKED, AGENT_KEY, AGENT_HANDLE_UP, AGENT_HANDLE_DOWN, AGENT_NORMALISE_CONSTANT, BACKGROUND_SPRITE, \
     WALL_SPRITE, LADDER_SPRITE, DOOR_CLOSED_SPRITE, DOOR_OPEN_SPRITE, KEY_SPRITE, COIN_SPRITE, BOLT_OPEN_SPRITE, \
     BOLT_CLOSED_SPRITE, HERO_SPRITE, HANDLE_BASE_SPRITE, HANDLE_SHAFT_SPRITE, FLOOR_SPRITE
 import numpy as np
-from gym_treasure_game.envs._treasure_game_impl._treasure_game_impl import _TreasureGameImpl
+from gym_multi_treasure_game.envs._treasure_game_impl._treasure_game_impl import _TreasureGameImpl
 
 base_dir = os.path.dirname(os.path.realpath(__file__))
 

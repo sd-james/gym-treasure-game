@@ -1,0 +1,4 @@
+door 6 7 True
+key 11 1
+bolt 7 7 True
+gold 5 7

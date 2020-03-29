@@ -8,7 +8,7 @@ Created on Wed Feb 12 00:16:00 2014
 import math
 import random
 
-from gym_treasure_game.envs._treasure_game_impl._constants import X_SCALE, Y_SCALE
+from gym_multi_treasure_game.envs._treasure_game_impl._constants import X_SCALE, Y_SCALE
 
 OPEN_SPACE = ' '
 DOOR = 'D'

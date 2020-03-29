@@ -1,0 +1,1 @@
+from gym_multi_treasure_game.envs.treasure_game import TreasureGame
