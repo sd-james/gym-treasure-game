@@ -6,8 +6,8 @@ import gym
 
 
 class View(enum.Enum):
-    PROBLEM = 0,
-    AGENT = 1
+    PROBLEM = 1,
+    AGENT = 2,
 
 
 class MultiViewEnv(gym.Env):
@@ -33,4 +33,3 @@ class MultiViewEnv(gym.Env):
         state, reward, done, info = super().step(action)
         observation = self.current_agent_observation()
         return state, observation, reward, done, info
-

@@ -1,20 +1,17 @@
-import time
-from abc import abstractmethod
 import random
 
 import gym
+import numpy as np
 import pygame
+from PIL import Image as I
 from gym.envs.classic_control import rendering
 from gym.spaces import Discrete, Box
-from PIL import Image as I
-import numpy as np
 
 from gym_multi_treasure_game.envs import TreasureGame
 from gym_multi_treasure_game.envs._treasure_game_impl._treasure_game_drawer import _TreasureGameDrawer
 from gym_multi_treasure_game.envs._treasure_game_impl._treasure_game_impl import _TreasureGameImpl, create_options
-from gym_multi_treasure_game.envs.multiview_env import MultiViewEnv
+from gym_multi_treasure_game.envs.multiview_env import MultiViewEnv, View
 from gym_multi_treasure_game.envs.treasure_game import make_path, get_dir_name
-
 
 
 def to_image(image, mode='L'):
@@ -38,7 +35,7 @@ def combine(images):
     return new_im
 
 
-class TreasureGameVX(MultiViewEnv, TreasureGame):
+class MultiTreasureGame(MultiViewEnv, TreasureGame):
 
     def __init__(self, version_number: int):
 
@@ -72,26 +69,26 @@ class TreasureGameVX(MultiViewEnv, TreasureGame):
     def describe_option(self, option: int) -> str:
         return self.option_names[option]
 
-    def render(self, mode='human', view='problem'):
+    def render(self, mode='human', view=View.PROBLEM):
         if self.drawer is None:
             self.drawer = _TreasureGameDrawer(self._env)
 
         self.drawer.draw_domain()
         local_rgb = None
-        if view == 'agent':
+        if view == View.AGENT:
             # draw the agent view too
             surface = self.drawer.draw_local_view()
             local_rgb = pygame.surfarray.array3d(surface).swapaxes(0, 1)  # swap because pygame
 
         rgb = pygame.surfarray.array3d(self.drawer.screen).swapaxes(0, 1)  # swap because pygame
         if mode == 'rgb_array':
-            return local_rgb if view == 'agent' else rgb
+            return local_rgb if view == View.AGENT else rgb
         elif mode == 'human':
             # draw it like gym
             if self.viewer is None:
                 self.viewer = rendering.SimpleImageViewer()
 
-            if view == 'agent':
+            if view == View.AGENT:
                 a = to_image(rgb, mode='RGB')
                 b = to_image(local_rgb, mode='RGB')
                 rgb = to_array(combine([a, b]))
@@ -104,7 +101,7 @@ if __name__ == '__main__':
     np.random.seed(0)
 
     for i in range(1, 11):
-        env = TreasureGameVX(i)
+        env = MultiTreasureGame(i)
         solved = False
         while not solved:
             state = env.reset()
