@@ -24,6 +24,11 @@ class MultiViewEnv(gym.Env):
     def current_agent_observation(self):
         pass
 
+    def reset(self) -> Tuple[Any, Any]:
+        state = super().reset()
+        observation = self.current_agent_observation()
+        return state, observation
+
     def step(self, action) -> Tuple[Any, Any, float, bool, Dict]:
         """
         Take a step in the environment

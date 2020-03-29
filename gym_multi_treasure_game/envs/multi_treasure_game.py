@@ -104,12 +104,12 @@ if __name__ == '__main__':
         env = MultiTreasureGame(i)
         solved = False
         while not solved:
-            state = env.reset()
+            state, obs = env.reset()
             for N in range(1000):
                 mask = env.available_mask
                 action = np.random.choice(np.arange(env.action_space.n), p=mask / mask.sum())
                 next_state, next_obs, reward, done, info = env.step(action)
-                env.render('human', view='agent')
+                env.render('human', view=View.AGENT)
                 if done:
                     print("WIN: {}".format(N))
                     print(info)
