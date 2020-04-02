@@ -5,7 +5,7 @@ import numpy as np
 import pygame
 from PIL import Image as I
 from gym.envs.classic_control import rendering
-from gym.spaces import Discrete, Box
+from gym.spaces import Discrete, Box, MultiDiscrete
 
 from gym_multi_treasure_game.envs import TreasureGame
 from gym_multi_treasure_game.envs._treasure_game_impl._treasure_game_drawer import _TreasureGameDrawer
@@ -57,8 +57,16 @@ class MultiTreasureGame(MultiViewEnv, TreasureGame):
         self.viewer = None
 
     @property
-    def agent_space(self) -> gym.Space:
-        return Box(low=np.float32(0), high=np.float32(1), shape=(11,))
+    def agent_space(self) -> MultiDiscrete:
+        return MultiDiscrete([11] * 9 + [2, 2])  # 9 for the cells, then boolean on has key, has coin
+
+    def n_dims(self, view: View) -> int:
+        """
+        The dimensionality of the state space, depending on the view
+        """
+        if view == View.PROBLEM:
+            return self.observation_space.shape[-1]
+        return len(self.agent_space.nvec)
 
     def current_agent_observation(self) -> np.ndarray:
         return self._env.current_observation()

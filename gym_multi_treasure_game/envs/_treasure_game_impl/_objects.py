@@ -118,9 +118,11 @@ class Handle(_GameObject):
         
         if(random.uniform(0, 1) <= 0.8):
             self.set_val(not self.up)
+            return True
         else:
             self.set_angle_wiggle()
-            
+            return False
+
     def get_angle(self):
         return self.angle
             

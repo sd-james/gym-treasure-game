@@ -3,10 +3,12 @@ import random
 import pygame
 import numpy as np
 from gym_multi_treasure_game.envs._treasure_game_impl import _treasure_game_drawer
-from gym_multi_treasure_game.envs._treasure_game_impl._move_options import go_left_option, go_right_option, up_ladder_option, \
+from gym_multi_treasure_game.envs._treasure_game_impl._move_options import go_left_option, go_right_option, \
+    up_ladder_option, \
     down_ladder_option, interact_option, down_left_option, down_right_option, jump_left_option, jump_right_option
 from gym_multi_treasure_game.envs._treasure_game_impl._objects import Door, Handle, Bolt, Key, GoldCoin
-from gym_multi_treasure_game.envs._treasure_game_impl._constants import X_SCALE, Y_SCALE, OPEN_SPACE, WALL, DOOR, LADDER, \
+from gym_multi_treasure_game.envs._treasure_game_impl._constants import X_SCALE, Y_SCALE, OPEN_SPACE, WALL, DOOR, \
+    LADDER, \
     ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT, ACTION_JUMP, ACTION_INTERACT, AGENT_DOOR_CLOSED, AGENT_GOLD, \
     AGENT_BOLT_LOCKED, AGENT_DOOR_OPEN, AGENT_BOLT_UNLOCKED, AGENT_HANDLE_DOWN, AGENT_HANDLE_UP, AGENT_KEY, \
     AGENT_OPEN_SPACE, AGENT_WALL, AGENT_LADDER, AGENT_NORMALISE_CONSTANT
@@ -379,7 +381,7 @@ class _TreasureGameImpl:
                 tname = type(obj).__name__
 
                 # There are two handles, so number them.
-                if (tname == 'handle'):
+                if isinstance(obj, Handle):
                     tname = tname + str(handle_no)
                     handle_no = handle_no + 1
 
@@ -391,9 +393,8 @@ class _TreasureGameImpl:
     def is_object_at(self, xc, yc):
         for obj in self.objects:
             if obj.cx == xc and obj.cy == yc:
-                if isinstance(obj, Handle) or (isinstance(obj, Door) and obj.door_closed()) or isinstance(obj,
-                                                                                                          Bolt) or isinstance(
-                        obj, GoldCoin) or isinstance(obj, Key):
+                if isinstance(obj, Handle) or (isinstance(obj, Door) and obj.door_closed()) or \
+                        isinstance(obj, Bolt) or isinstance(obj, GoldCoin) or isinstance(obj, Key):
                     return True
         return False
 
@@ -456,19 +457,18 @@ class _TreasureGameImpl:
                     yval = int(state[desc.index(y_label)] * self.height)
                     obj.move_to_xy(xval, yval)
                 elif (isinstance(obj, Handle)):
-                    label = 'handle' + str(handle_no) + '.angle'
+                    label = 'Handle' + str(handle_no) + '.angle'
                     angle = state[desc.index(label)]
                     obj.set_angle(angle)
                     obj.previously_triggered = True
                     handle_no = handle_no + 1
                 elif (isinstance(obj, Bolt)):
-                    val = (state[desc.index("bolt.locked")] > 0.5)
+                    val = (state[desc.index("Bolt.locked")] > 0.5)
                     obj.set_val(val)
 
         for obj in self.objects:
             if (isinstance(obj, Handle)):
                 self.previously_triggered = False
-
 
     def _get_object(self, cell_x, cell_y):
         for o in self.objects:
@@ -476,11 +476,15 @@ class _TreasureGameImpl:
                 if isinstance(o, Door):
                     return AGENT_DOOR_CLOSED if o.closed else AGENT_DOOR_OPEN
                 if isinstance(o, GoldCoin):
-                    return AGENT_GOLD
+                    if self.object_type_at_cell(cell_x, cell_y) != WALL:
+                        return AGENT_GOLD
+                    break
                 if isinstance(o, Bolt):
                     return AGENT_BOLT_LOCKED if o.locked else AGENT_BOLT_UNLOCKED
                 if isinstance(o, Key):
-                    return AGENT_KEY
+                    if self.object_type_at_cell(cell_x, cell_y) != WALL:
+                        return AGENT_KEY
+                    break
                 if isinstance(o, Handle):
                     return AGENT_HANDLE_UP if o.is_up() else AGENT_HANDLE_DOWN
                 else:

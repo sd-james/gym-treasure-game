@@ -280,11 +280,17 @@ class _TreasureGameDrawer:
         for i in range(0, len(blocks)):
             for j in range(0, len(blocks[i])):
 
+                if np.isnan(blocks[i][j]):
+                    if i == mid and j == mid:
+                        draw_surf.blit(self.images[HERO_SPRITE], (j * X_SCALE, i * Y_SCALE))
+                    continue
+
                 x = int(round(blocks[i][j]))
 
-                # always have background in the background
-                img = self._get_random_sprite(BACKGROUND_SPRITE)
-                draw_surf.blit(img, (j * X_SCALE, i * Y_SCALE))
+                # always have background in the background unless it's the centre
+                if i != 1 or j != 1:
+                    img = self._get_random_sprite(BACKGROUND_SPRITE)
+                    draw_surf.blit(img, (j * X_SCALE, i * Y_SCALE))
 
                 if x == AGENT_WALL:
                     key = WALL_SPRITE
@@ -336,7 +342,8 @@ class _TreasureGameDrawer:
                     y = i * Y_SCALE
                     handle_pivot = ((x - X_SCALE / 2) - dx, (y - 5) - dy)
                     draw_surf.blit(self.images[HANDLE_BASE_SPRITE], (x, y))
-                    draw_surf.blit(im, handle_pivot)
+                    # draw_surf.blit(im, handle_pivot)
+                    draw_surf.blit(im, (x, y))
 
                 #     self.screen.blit(self.images[HANDLE_BASE_SPRITE], (x, y))
                 #     self.screen.blit(im, handle_pivot)
@@ -345,10 +352,22 @@ class _TreasureGameDrawer:
                     # self.screen.blit(self.images[HERO_SPRITE], (j * X_SCALE, i * Y_SCALE))
                     draw_surf.blit(self.images[HERO_SPRITE], (j * X_SCALE, i * Y_SCALE))
 
-        if bag[0]:
+        if not np.isnan(bag[0]):
             draw_surf.blit(self.images[KEY_SPRITE], (0, len(blocks) * Y_SCALE))
-        elif bag[1]:
-            draw_surf.blit(self.images[COIN_SPRITE], (0, len(blocks) * Y_SCALE))
+            if int(round(bag[0])) == 0:
+                pygame.draw.line(draw_surf, (255, 0, 0), (0, len(blocks) * Y_SCALE),
+                                 (X_SCALE, len(blocks) * Y_SCALE + Y_SCALE), 2)
+                pygame.draw.line(draw_surf, (255, 0, 0), (X_SCALE, len(blocks) * Y_SCALE),
+                                 (0, len(blocks) * Y_SCALE + Y_SCALE), 2)
+
+        if not np.isnan(bag[1]):
+            draw_surf.blit(self.images[COIN_SPRITE], (X_SCALE, len(blocks) * Y_SCALE))
+            if int(round(bag[1])) == 0:
+                pygame.draw.line(draw_surf, (255, 0, 0), (X_SCALE, len(blocks) * Y_SCALE),
+                                 (X_SCALE * 2, len(blocks) * Y_SCALE + Y_SCALE), 2)
+                pygame.draw.line(draw_surf, (255, 0, 0), (2 * X_SCALE, len(blocks) * Y_SCALE),
+                                 (X_SCALE, len(blocks) * Y_SCALE + Y_SCALE), 2)
+
         # if bag == 2:
         #     draw_surf.blit(self.images[COIN_SPRITE], (0, len(blocks) * Y_SCALE))
         #     self.screen.blit(self.images[COIN_SPRITE], (0, len(blocks) * Y_SCALE))

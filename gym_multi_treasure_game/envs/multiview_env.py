@@ -12,6 +12,13 @@ class View(enum.Enum):
 
 class MultiViewEnv(gym.Env):
 
+    @abstractmethod
+    def n_dims(self, view: View) -> int:
+        """
+        The dimensionality of the state space, depending on the view
+        """
+        pass
+
     @property
     @abstractmethod
     def agent_space(self) -> gym.Space:
