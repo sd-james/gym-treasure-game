@@ -35,6 +35,7 @@ After installing the environment, it can simply be used in the standard gym-like
 
 ```python
 import gym
+import gym_treasure_game
 
 env = gym.make('treasure_game-v0')
 for episode in range(5):
