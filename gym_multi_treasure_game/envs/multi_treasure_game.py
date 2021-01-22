@@ -1,17 +1,42 @@
-import random
+from gym.spaces import Discrete
 
-import gym
+from gym_multi_treasure_game.envs import TreasureGame
+from gym_multi_treasure_game.envs.pca.base_pca import BasePCA, PCA_N
+from gym_multi_treasure_game.envs.treasure_game import make_path, get_dir_name
+from gym_multi_treasure_game.envs.treasure_game_impl_.treasure_game_drawer import TreasureGameDrawer_
+from gym_multi_treasure_game.envs.treasure_game_impl_.treasure_game_impl import TreasureGameImpl_, create_options
+from s2s.env.s2s_env import MultiViewEnv, View, S2SEnv
+import matplotlib.pyplot as plt
+
+def to_image(image, mode='L'):
+    img = I.fromarray(np.uint8(image), mode=mode)
+    return img
+
+
+def to_array(image):
+    return np.array(image.convert('RGB'))
+
+
+def combine(images):
+    widths, heights = zip(*(i.size for i in images))
+    max_width = max(widths)
+    sum_height = sum(heights)
+    new_im = I.new('RGB', (max_width, sum_height))
+    y_offset = 0
+    for im in images:
+        new_im.paste(im, (0, y_offset))
+        y_offset += im.size[1]
+    return new_im
+
+
+import random
+import time
+
 import numpy as np
 import pygame
 from PIL import Image as I
 from gym.envs.classic_control import rendering
-from gym.spaces import Discrete, Box, MultiDiscrete
-
-from gym_multi_treasure_game.envs import TreasureGame
-from gym_multi_treasure_game.envs._treasure_game_impl._treasure_game_drawer import _TreasureGameDrawer
-from gym_multi_treasure_game.envs._treasure_game_impl._treasure_game_impl import _TreasureGameImpl, create_options
-from gym_multi_treasure_game.envs.multiview_env import MultiViewEnv, View
-from gym_multi_treasure_game.envs.treasure_game import make_path, get_dir_name
+from gym.spaces import Box
 
 
 def to_image(image, mode='L'):
@@ -35,18 +60,25 @@ def combine(images):
     return new_im
 
 
-class MultiTreasureGame(MultiViewEnv, TreasureGame):
+class MultiTreasureGame(MultiViewEnv, TreasureGame, S2SEnv):
 
-    def __init__(self, version_number: int):
+    @property
+    def available_mask(self) -> np.ndarray:
+        return super().available_mask
+
+    def __init__(self, version_number: int, pca: BasePCA = None):
+        self._version_number = version_number
 
         if version_number == 0:
             # use original
+            print("Disabling original game. Use versions > 0")
+            exit(-1)
             super().__init__()
             return
 
-        self._version_number = version_number
+        self._pca = pca
         dir = make_path(get_dir_name(__file__), 'layouts')
-        self._env = _TreasureGameImpl(make_path(dir, 'domain_v{}.txt'.format(version_number)),
+        self._env = TreasureGameImpl_(make_path(dir, 'domain_v{}.txt'.format(version_number)),
                                       make_path(dir, 'domain-objects_v{}.txt'.format(version_number)),
                                       make_path(dir, 'domain-interactions_v{}.txt'.format(version_number)))
         self.drawer = None
@@ -56,9 +88,40 @@ class MultiTreasureGame(MultiViewEnv, TreasureGame):
         self.observation_space = Box(np.float32(0.0), np.float32(1.0), shape=(len(s),))
         self.viewer = None
 
+    def __str__(self):
+        return "TreasureGameV{}".format(self._version_number)
+
+    def _render_state(self, state: np.ndarray, **kwargs) -> np.ndarray:
+        """
+        Return an image of the given state. There should be no missing state variables (using render_state if so)
+        """
+
+        if kwargs.get('view', View.PROBLEM) == View.PROBLEM:
+
+            if state[-1] > 0.5:
+                colour = pygame.Color('red')
+            else:
+                colour = pygame.Color('green')
+            surface = self.drawer.draw_background_to_surface()
+            surface.set_alpha(32)
+
+            left = state[0] * surface.get_width()
+            top = state[1] * surface.get_height()
+            w = 32
+            h = 32
+
+            pygame.draw.rect(surface, colour, (left, top, w, h))
+            image = pygame.surfarray.array3d(surface).swapaxes(0, 1)
+        else:
+            image = self._pca.unflatten(self._pca.uncompress_(state))
+        return image
+
     @property
-    def agent_space(self) -> MultiDiscrete:
-        return MultiDiscrete([11] * 9 + [2, 2])  # 9 for the cells, then boolean on has key, has coin
+    def agent_space(self) -> Box:
+        return Box(0, 255, (192, 144, 3))
+
+    def describe_option(self, option: int) -> str:
+        return self.option_names[option]
 
     def n_dims(self, view: View) -> int:
         """
@@ -66,20 +129,14 @@ class MultiTreasureGame(MultiViewEnv, TreasureGame):
         """
         if view == View.PROBLEM:
             return self.observation_space.shape[-1]
-        return len(self.agent_space.nvec)
+        return PCA_N
 
     def current_agent_observation(self) -> np.ndarray:
-        return self._env.current_observation()
-
-    def __str__(self):
-        return "TreasureGameV{}".format(self._version_number)
-
-    def describe_option(self, option: int) -> str:
-        return self.option_names[option]
+        return np.expand_dims(self._env.current_observation(self.drawer), axis=0)  # 1 x (width x height x channels)
 
     def render(self, mode='human', view=View.PROBLEM):
         if self.drawer is None:
-            self.drawer = _TreasureGameDrawer(self._env)
+            self.drawer = TreasureGameDrawer_(self._env)
 
         self.drawer.draw_domain()
         local_rgb = None
@@ -113,15 +170,18 @@ if __name__ == '__main__':
         solved = False
         while not solved:
             state, obs = env.reset()
+            # print(state)
             for N in range(1000):
                 mask = env.available_mask
                 action = np.random.choice(np.arange(env.action_space.n), p=mask / mask.sum())
                 next_state, next_obs, reward, done, info = env.step(action)
+                # print(next_state)
+
                 env.render('human', view=View.AGENT)
                 if done:
-                    print("WIN: {}".format(N))
+                    print("{}: WIN: {}".format(i, N))
                     print(info)
                     solved = True
                     env.close()
                     break
-                # time.sleep(0.5)
+                time.sleep(0.5)

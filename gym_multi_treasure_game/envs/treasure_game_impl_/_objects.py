@@ -8,7 +8,7 @@ Created on Wed Feb 12 00:16:00 2014
 import math
 import random
 
-from gym_multi_treasure_game.envs._treasure_game_impl._constants import X_SCALE, Y_SCALE
+from gym_multi_treasure_game.envs.treasure_game_impl_._constants import X_SCALE, Y_SCALE
 
 OPEN_SPACE = ' '
 DOOR = 'D'
@@ -109,9 +109,9 @@ class Handle(_GameObject):
         self.left_facing = left_facing
         
         if(self.up):
-            self.angle = random.uniform(0.85, 1.0)
+            self.angle = random.uniform(0.95, 1.0)
         else:
-            self.angle = random.uniform(0, 0.15)
+            self.angle = random.uniform(0, 0.05)
         self.radius = X_SCALE * 0.75
             
     def flip(self):
@@ -128,9 +128,9 @@ class Handle(_GameObject):
             
     def set_angle_wiggle(self):
         if(self.up):
-            self.angle = random.uniform(0.85, 1.0)
+            self.angle = random.uniform(0.95, 1.0)
         else:
-            self.angle = random.uniform(0, 0.15)
+            self.angle = random.uniform(0, 0.05)
             
     def set_angle(self, angle, propagate = True):
         old_up = self.up

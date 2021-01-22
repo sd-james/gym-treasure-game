@@ -13,21 +13,22 @@ from pygame.locals import *
 
 import os
 
-from gym_multi_treasure_game.envs._treasure_game_impl._objects import Handle, Door, Key, GoldCoin, Bolt
-from gym_multi_treasure_game.envs._treasure_game_impl._constants import X_SCALE, Y_SCALE, OPEN_SPACE, WALL, LADDER, \
+from gym_multi_treasure_game.envs.treasure_game_impl_._objects import Handle, Door, Key, GoldCoin, Bolt
+from gym_multi_treasure_game.envs.treasure_game_impl_._constants import X_SCALE, Y_SCALE, OPEN_SPACE, WALL, LADDER, \
     AGENT_WALL, AGENT_OPEN_SPACE, AGENT_DOOR_OPEN, AGENT_DOOR_CLOSED, AGENT_GOLD, AGENT_LADDER, AGENT_BOLT_LOCKED, \
     AGENT_BOLT_UNLOCKED, AGENT_KEY, AGENT_HANDLE_UP, AGENT_HANDLE_DOWN, AGENT_NORMALISE_CONSTANT, BACKGROUND_SPRITE, \
     WALL_SPRITE, LADDER_SPRITE, DOOR_CLOSED_SPRITE, DOOR_OPEN_SPRITE, KEY_SPRITE, COIN_SPRITE, BOLT_OPEN_SPRITE, \
-    BOLT_CLOSED_SPRITE, HERO_SPRITE, HANDLE_BASE_SPRITE, HANDLE_SHAFT_SPRITE, FLOOR_SPRITE
+    BOLT_CLOSED_SPRITE, HERO_SPRITE, HANDLE_BASE_SPRITE, HANDLE_SHAFT_SPRITE, FLOOR_SPRITE, TORCH, TORCH_SPRITE, BANNER, \
+    BANNER_SPRITE
 import numpy as np
-from gym_multi_treasure_game.envs._treasure_game_impl._treasure_game_impl import _TreasureGameImpl
+from gym_multi_treasure_game.envs.treasure_game_impl_.treasure_game_impl import TreasureGameImpl_
 
 base_dir = os.path.dirname(os.path.realpath(__file__))
 
 
-class _TreasureGameDrawer:
+class TreasureGameDrawer_:
 
-    def __init__(self, md: _TreasureGameImpl, display_screen=False):
+    def __init__(self, md: TreasureGameImpl_, display_screen=False):
 
         self.env = md
 
@@ -63,15 +64,17 @@ class _TreasureGameDrawer:
                 pygame.image.load(base_dir + '/sprites/floor/floor-{}.png'.format(i)).convert_alpha(),
                 (X_SCALE, Y_SCALE))
             images[FLOOR_SPRITE].append(floorpic)
+            torchpic = pygame.transform.scale(
+                pygame.image.load(base_dir + '/sprites/torch/torch_{}.png'.format(i)).convert_alpha(),
+                (X_SCALE, Y_SCALE))
+            images[TORCH_SPRITE].append(torchpic)
         return images
 
     def _get_random_sprite(self, key):
-        # if key == BACKGROUND_SPRITE:
-        #     return self.random_images[key][0]
         return self.random_generator.choice(self.random_images[key])
 
     def load_sprites(self):
-        images = [None] * 12
+        images = dict()
 
         ladder = pygame.transform.scale(pygame.image.load(base_dir + '/sprites/ladder.png').convert_alpha(),
                                         (X_SCALE, Y_SCALE))
@@ -84,6 +87,14 @@ class _TreasureGameDrawer:
         wallpic = pygame.transform.scale(pygame.image.load(base_dir + '/sprites/wall.png').convert_alpha(),
                                          (X_SCALE, Y_SCALE))
         images[WALL_SPRITE] = wallpic
+
+        torchpic = pygame.transform.scale(pygame.image.load(base_dir + '/sprites/torch.png').convert_alpha(),
+                                          (X_SCALE, Y_SCALE))
+        images[TORCH_SPRITE] = torchpic
+
+        bannerpic = pygame.transform.scale(pygame.image.load(base_dir + '/sprites/banner.png').convert_alpha(),
+                                           (X_SCALE, Y_SCALE))
+        images[BANNER_SPRITE] = bannerpic
 
         goldpic = pygame.transform.scale(pygame.image.load(base_dir + '/sprites/gold.png').convert_alpha(),
                                          (X_SCALE, Y_SCALE))
@@ -124,6 +135,7 @@ class _TreasureGameDrawer:
         return images
 
     def draw_domain(self, show_screen=True, ):
+
         self.random_generator.seed(self.seed)
         self.screen.fill((0, 0, 0))
 
@@ -140,25 +152,34 @@ class _TreasureGameDrawer:
                     self.screen.blit(self.images[LADDER_SPRITE], (j * X_SCALE, i * Y_SCALE))
                 elif (self.env.description[i][j] == OPEN_SPACE):
                     self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
-
-        for obj in self.env.objects:
-            self.draw_object(obj, self.screen)
+                elif (self.env.description[i][j] == TORCH):
+                    self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                    self.screen.blit(self._get_random_sprite(TORCH_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                elif (self.env.description[i][j] == BANNER):
+                    self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                    self.screen.blit(self.images[BANNER_SPRITE], (j * X_SCALE, i * Y_SCALE))
 
         if self.env.facing_right:
             self.screen.blit(self.images[HERO_SPRITE], (self.env.playerx - X_SCALE / 2, self.env.playery))
         else:
             self.screen.blit(pygame.transform.flip(self.images[HERO_SPRITE], True, False),
                              (self.env.playerx - X_SCALE / 2, self.env.playery))
+        # draw objects in front of agent for PCA purposes
+        for obj in self.env.objects:
+            self.draw_object(obj, self.screen)
+
         if show_screen:
             pygame.display.flip()
 
     def draw_background_to_surface(self):
+
         self.random_generator.seed(self.seed)
         draw_surf = pygame.Surface((self.env.width, self.env.height))
         draw_surf.fill((0, 0, 0))
 
         for i in range(0, self.env.cell_height):
             for j in range(0, self.env.cell_width):
+
                 if (self.env.description[i][j] == WALL):
                     key = WALL_SPRITE
                     if i > 0 and self.env.description[i - 1][j] != WALL:
@@ -168,6 +189,12 @@ class _TreasureGameDrawer:
                     draw_surf.blit(self.images[LADDER_SPRITE], (j * X_SCALE, i * Y_SCALE))
                 elif (self.env.description[i][j] == OPEN_SPACE):
                     draw_surf.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                elif (self.env.description[i][j] == TORCH):
+                    draw_surf.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                    draw_surf.blit(self.images[TORCH_SPRITE], (j * X_SCALE, i * Y_SCALE))
+                elif (self.env.description[i][j] == BANNER):
+                    draw_surf.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                    draw_surf.blit(self.images[BANNER_SPRITE], (j * X_SCALE, i * Y_SCALE))
 
         return draw_surf
 
@@ -261,118 +288,52 @@ class _TreasureGameDrawer:
     def draw_local_view(self, state=None):
 
         if state is None:
-            state = self.env.current_observation()
+            x, y = self.env.playerx, self.env.playery
+        else:
+            x, y = state[0] * self.env.width, state[1] * self.env.height
 
-        recent_tiles = [0]
+        N = 3
+        size_x = X_SCALE * N
+        size_y = Y_SCALE * N
 
-        bag = state[-2:]
-        state = state[:-2]
-        state *= AGENT_NORMALISE_CONSTANT
+        surface = pygame.Surface((size_x, size_y + Y_SCALE))
+        surface.fill((0, 0, 0))
 
-        n = int(np.sqrt(len(state)))
-        size_x = X_SCALE * n
-        size_y = Y_SCALE * (n + 1)
-        blocks = state.reshape((n, n))
-        draw_surf = pygame.Surface((size_x, size_y))
-        draw_surf.fill((0, 0, 0))
-        # self.screen.fill((0, 0, 0))
-        mid = n // 2
-        for i in range(0, len(blocks)):
-            for j in range(0, len(blocks[i])):
+        left = max(0, x - X_SCALE // 2 - X_SCALE)
+        top = max(0, y - Y_SCALE)
+        left = min(self.screen.get_width() - size_x, left)
+        top = min(self.screen.get_height() - size_y, top)
 
-                if np.isnan(blocks[i][j]):
-                    if i == mid and j == mid:
-                        draw_surf.blit(self.images[HERO_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                    continue
+        # draw local view
+        surface.blit(self.screen.subsurface(left, top, size_x, size_y), (0, 0))
 
-                x = int(round(blocks[i][j]))
-
-                # always have background in the background unless it's the centre
-                if i != 1 or j != 1:
-                    img = self._get_random_sprite(BACKGROUND_SPRITE)
-                    draw_surf.blit(img, (j * X_SCALE, i * Y_SCALE))
-
-                if x == AGENT_WALL:
-                    key = WALL_SPRITE
-                    if i > 0 and blocks[i - 1][j] != AGENT_WALL:
-                        key = FLOOR_SPRITE
-
-                    img = self._get_random_sprite(key)
-                    draw_surf.blit(img, (j * X_SCALE, i * Y_SCALE))
-                    # self.screen.blit(img, (j * X_SCALE, i * Y_SCALE))
-                elif x == AGENT_OPEN_SPACE:
-                    img = self._get_random_sprite(BACKGROUND_SPRITE)
-                    draw_surf.blit(img, (j * X_SCALE, i * Y_SCALE))
-                    # self.screen.blit(img, (j * X_SCALE, i * Y_SCALE))
-                elif x == AGENT_DOOR_OPEN:
-                    draw_surf.blit(self.images[DOOR_OPEN_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                    # self.screen.blit(self.images[DOOR_OPEN_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                elif x == AGENT_DOOR_CLOSED:
-                    draw_surf.blit(self.images[DOOR_CLOSED_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                    # self.screen.blit(self.images[DOOR_CLOSED_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                elif x == AGENT_GOLD:
-                    draw_surf.blit(self.images[COIN_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                    # self.screen.blit(self.images[COIN_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                elif x == AGENT_LADDER:
-                    draw_surf.blit(self.images[LADDER_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                    # self.screen.blit(self.images[LADDER_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                elif x == AGENT_BOLT_LOCKED:
-                    draw_surf.blit(self.images[BOLT_CLOSED_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                    # self.screen.blit(self.images[BOLT_CLOSED_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                elif x == AGENT_BOLT_UNLOCKED:
-                    draw_surf.blit(self.images[BOLT_OPEN_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                    # self.screen.blit(self.images[BOLT_OPEN_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                elif x == AGENT_KEY:
-                    draw_surf.blit(self.images[KEY_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                    # self.screen.blit(self.images[KEY_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                elif x == AGENT_HANDLE_UP or x == AGENT_HANDLE_DOWN:
-
-                    im = self.images[HANDLE_SHAFT_SPRITE]
-                    angleRaw = random.uniform(0.85, 1.0) if AGENT_HANDLE_UP == x else random.uniform(0, 0.15)
-                    angle = ((math.pi / 2.0) * angleRaw) - math.pi / 4.0
-
-                    im = pygame.transform.rotate(im, angle * 180.0 / math.pi)
-                    # This rotation draws a bounding box around the resulting image, and then
-                    # translates the results so that the bounding box is aligned with the top-
-                    # left pixel of the original image. To figure out how much that moves the
-                    # center by, we do the following calculation:
-                    dx = X_SCALE * math.fabs(math.cos(angle) + math.sin(math.fabs(angle)) - 1)
-                    dy = Y_SCALE * math.fabs(math.cos(angle) + math.sin(math.fabs(angle)) - 1)
-                    x = j * X_SCALE
-                    y = i * Y_SCALE
-                    handle_pivot = ((x - X_SCALE / 2) - dx, (y - 5) - dy)
-                    draw_surf.blit(self.images[HANDLE_BASE_SPRITE], (x, y))
-                    # draw_surf.blit(im, handle_pivot)
-                    draw_surf.blit(im, (x, y))
-
-                #     self.screen.blit(self.images[HANDLE_BASE_SPRITE], (x, y))
-                #     self.screen.blit(im, handle_pivot)
-                #
-                if i == mid and j == mid:
-                    # self.screen.blit(self.images[HERO_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                    draw_surf.blit(self.images[HERO_SPRITE], (j * X_SCALE, i * Y_SCALE))
+        # draw inventory
+        bag = [int(self.env.player_got_key()), int(self.env.player_got_goldcoin())]
 
         if not np.isnan(bag[0]):
-            draw_surf.blit(self.images[KEY_SPRITE], (0, len(blocks) * Y_SCALE))
-            if int(round(bag[0])) == 0:
-                pygame.draw.line(draw_surf, (255, 0, 0), (0, len(blocks) * Y_SCALE),
-                                 (X_SCALE, len(blocks) * Y_SCALE + Y_SCALE), 2)
-                pygame.draw.line(draw_surf, (255, 0, 0), (X_SCALE, len(blocks) * Y_SCALE),
-                                 (0, len(blocks) * Y_SCALE + Y_SCALE), 2)
+            if int(round(bag[0])) == 1:
+                surface.blit(self.images[KEY_SPRITE], (0, N * Y_SCALE))
+            # if int(round(bag[0])) == 0:
+            #     pygame.draw.line(surface, (255, 0, 0), (0, N * Y_SCALE),
+            #                      (X_SCALE, N * Y_SCALE + Y_SCALE), 2)
+            #     pygame.draw.line(surface, (255, 0, 0), (X_SCALE, N * Y_SCALE),
+            #                      (0, N * Y_SCALE + Y_SCALE), 2)
 
         if not np.isnan(bag[1]):
-            draw_surf.blit(self.images[COIN_SPRITE], (X_SCALE, len(blocks) * Y_SCALE))
-            if int(round(bag[1])) == 0:
-                pygame.draw.line(draw_surf, (255, 0, 0), (X_SCALE, len(blocks) * Y_SCALE),
-                                 (X_SCALE * 2, len(blocks) * Y_SCALE + Y_SCALE), 2)
-                pygame.draw.line(draw_surf, (255, 0, 0), (2 * X_SCALE, len(blocks) * Y_SCALE),
-                                 (X_SCALE, len(blocks) * Y_SCALE + Y_SCALE), 2)
+            if int(round(bag[1])) == 1:
+                surface.blit(self.images[COIN_SPRITE], (X_SCALE, N * Y_SCALE))
+            # if int(round(bag[1])) == 0:
+            #     pygame.draw.line(surface, (255, 0, 0), (X_SCALE, N * Y_SCALE),
+            #                      (X_SCALE * 2, N * Y_SCALE + Y_SCALE), 2)
+            #     pygame.draw.line(surface, (255, 0, 0), (2 * X_SCALE, N * Y_SCALE),
+            #                      (X_SCALE, N * Y_SCALE + Y_SCALE), 2)
 
         # if bag == 2:
-        #     draw_surf.blit(self.images[COIN_SPRITE], (0, len(blocks) * Y_SCALE))
-        #     self.screen.blit(self.images[COIN_SPRITE], (0, len(blocks) * Y_SCALE))
+        #     draw_surf.blit(self.images[COIN_SPRITE], (0, N * Y_SCALE))
+        #     self.screen.blit(self.images[COIN_SPRITE], (0, N * Y_SCALE))
         # elif bag == 1:
-        #     draw_surf.blit(self.images[KEY_SPRITE], (0, len(blocks) * Y_SCALE))
-        #     self.screen.blit(self.images[KEY_SPRITE], (0, len(blocks) * Y_SCALE))
+        #     draw_surf.blit(self.images[KEY_SPRITE], (0, N * Y_SCALE))
+        #     self.screen.blit(self.images[KEY_SPRITE], (0, N * Y_SCALE))
         # pygame.display.flip()
-        return draw_surf
+
+        return surface

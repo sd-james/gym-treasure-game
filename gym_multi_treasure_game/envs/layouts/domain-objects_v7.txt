@@ -1,6 +1,3 @@
-door 5 1 True
-door 2 11 True
-handle 4 1 True
-key 7 1
-gold 1 11
-bolt 3 11 True
+door 10 6 True
+handle 12 8 True
+gold 12 6

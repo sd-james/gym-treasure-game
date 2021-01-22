@@ -2,22 +2,22 @@ import random
 
 import pygame
 import numpy as np
-from gym_multi_treasure_game.envs._treasure_game_impl import _treasure_game_drawer
-from gym_multi_treasure_game.envs._treasure_game_impl._move_options import go_left_option, go_right_option, \
+from gym_multi_treasure_game.envs.treasure_game_impl_ import treasure_game_drawer
+from gym_multi_treasure_game.envs.treasure_game_impl_._move_options import go_left_option, go_right_option, \
     up_ladder_option, \
     down_ladder_option, interact_option, down_left_option, down_right_option, jump_left_option, jump_right_option
-from gym_multi_treasure_game.envs._treasure_game_impl._objects import Door, Handle, Bolt, Key, GoldCoin
-from gym_multi_treasure_game.envs._treasure_game_impl._constants import X_SCALE, Y_SCALE, OPEN_SPACE, WALL, DOOR, \
+from gym_multi_treasure_game.envs.treasure_game_impl_._objects import Door, Handle, Bolt, Key, GoldCoin
+from gym_multi_treasure_game.envs.treasure_game_impl_._constants import X_SCALE, Y_SCALE, OPEN_SPACE, WALL, DOOR, \
     LADDER, \
     ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT, ACTION_JUMP, ACTION_INTERACT, AGENT_DOOR_CLOSED, AGENT_GOLD, \
     AGENT_BOLT_LOCKED, AGENT_DOOR_OPEN, AGENT_BOLT_UNLOCKED, AGENT_HANDLE_DOWN, AGENT_HANDLE_UP, AGENT_KEY, \
-    AGENT_OPEN_SPACE, AGENT_WALL, AGENT_LADDER, AGENT_NORMALISE_CONSTANT
+    AGENT_OPEN_SPACE, AGENT_WALL, AGENT_LADDER, AGENT_NORMALISE_CONSTANT, TORCH, BANNER
 
 JUMP_REWARD = -5
 STEP_REWARD = -1
 
 
-class _TreasureGameImpl:
+class TreasureGameImpl_:
 
     def __init__(self, domain_file, object_file, interaction_file):
 
@@ -213,7 +213,10 @@ class _TreasureGameImpl:
         if ((y >= self.height) or (y < 0)):
             return WALL
 
-        return self.map[y][x]
+        obj = self.map[y][x]
+        if obj == TORCH or obj == BANNER:
+            obj = OPEN_SPACE
+        return obj
 
     def object_type_at_cell(self, xc, yc):
         x = (xc * X_SCALE) + (X_SCALE // 2)
@@ -363,7 +366,8 @@ class _TreasureGameImpl:
         state_vec.append(float(self.playery) / self.height)
 
         for obj in self.objects:
-            if (obj.has_state()):
+            if (isinstance(obj, Bolt) or isinstance(obj, Handle)) and obj.has_state():
+            # if (obj.has_state()):
                 state_vec = state_vec + obj.get_state()
 
         return state_vec
@@ -500,15 +504,9 @@ class _TreasureGameImpl:
         else:
             raise ValueError
 
-    def current_observation(self):
-        state_vec = []
-        (cell_x, cell_y) = self.get_player_cell()
-        for dy in [-1, 0, 1]:
-            for dx in [-1, 0, 1]:
-                state_vec.append(self._get_object(cell_x + dx, cell_y + dy) / AGENT_NORMALISE_CONSTANT)  # normalise
-
-        state_vec.extend([int(self.player_got_key()), int(self.player_got_goldcoin())])
-        return np.array(state_vec)
+    def current_observation(self, drawer):
+        surf =  drawer.draw_local_view()
+        return pygame.surfarray.array3d(surf).swapaxes(0, 1)  # swap because pygame
 
 
 def create_options(md, drawer=None):
@@ -531,8 +529,8 @@ def create_options(md, drawer=None):
 if __name__ == "__main__":
 
     pygame.init()
-    env = _TreasureGameImpl('domain.txt', 'domain-objects.txt', 'domain-interactions.txt')
-    drawer = _treasure_game_drawer._TreasureGameDrawer(env, display_screen=True)
+    env = TreasureGameImpl_('domain.txt', 'domain-objects.txt', 'domain-interactions.txt')
+    drawer = treasure_game_drawer.TreasureGameDrawer_(env, display_screen=True)
 
     clock = pygame.time.Clock()
     pygame.key.set_repeat()

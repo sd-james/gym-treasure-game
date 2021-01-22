@@ -1,5 +1,4 @@
 import os
-from typing import Any, List
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"  # sorry PyGame
 
@@ -10,8 +9,8 @@ import pygame
 from gym.envs.classic_control import rendering
 from gym.spaces import Discrete, Box
 
-from gym_multi_treasure_game.envs._treasure_game_impl._treasure_game_drawer import _TreasureGameDrawer
-from gym_multi_treasure_game.envs._treasure_game_impl._treasure_game_impl import _TreasureGameImpl, create_options
+from gym_multi_treasure_game.envs.treasure_game_impl_.treasure_game_drawer import TreasureGameDrawer_
+from gym_multi_treasure_game.envs.treasure_game_impl_.treasure_game_impl import TreasureGameImpl_, create_options
 
 __author__ = 'Steve James and George Konidaris'
 
@@ -41,6 +40,7 @@ def make_path(root,
             path += '/'
         path += element
     return path
+
 
 def get_dir_name(file):
     """
@@ -81,10 +81,10 @@ class TreasureGame(gym.Env):
         Create a new instantiation of the Treasure Game
         """
         dir = os.path.dirname(os.path.realpath(__file__))
-        dir = make_path(dir, '_treasure_game_impl')
-        self._env = _TreasureGameImpl(make_path(dir, 'domain.txt'), make_path(dir, 'domain-objects.txt'),
+        dir = make_path(dir, 'treasure_game_impl_')
+        self._env = TreasureGameImpl_(make_path(dir, 'domain.txt'), make_path(dir, 'domain-objects.txt'),
                                       make_path(dir, 'domain-interactions.txt'))
-        self.drawer = None
+        self.drawer = TreasureGameDrawer_(self._env)
         self.option_list, self.option_names = create_options(self._env)
         self.action_space = Discrete(len(self.option_list))
         s = self._env.get_state()
@@ -92,9 +92,12 @@ class TreasureGame(gym.Env):
         self.viewer = None
         self.local_viewer = None
 
-    def reset(self):
+    def reset(self, **kwargs):
         self._env.reset_game()
         self.option_list, self.option_names = create_options(self._env, None)
+        if self.drawer is None:
+            self.drawer = TreasureGameDrawer_(self._env)
+        self.drawer.draw_domain()
         return self._env.get_state()
 
     @property
@@ -108,13 +111,15 @@ class TreasureGame(gym.Env):
     def step(self, action):
         option = self.option_list[action]
         r = option.run()
+        self.drawer.draw_domain()
         state = self._env.get_state()
-        done = self._env.player_got_goldcoin() and self._env.get_player_cell()[1] == 0  # got gold and returned
+        done = self._env.player_got_goldcoin()  # got gold coin
+        # done = self._env.player_got_goldcoin() and self._env.get_player_cell()[1] == 0  # got gold and returned
         return state, r, done, {}
 
     def render(self, mode='human'):
         if self.drawer is None:
-            self.drawer = _TreasureGameDrawer(self._env)
+            self.drawer = TreasureGameDrawer_(self._env)
 
         self.drawer.draw_domain()
         rgb = pygame.surfarray.array3d(self.drawer.screen).swapaxes(0, 1)  # swap because pygame

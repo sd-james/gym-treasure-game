@@ -4,8 +4,11 @@ Created on Sun Feb 16 18:10:26 2014
 
 @author: gdk
 """
+from gym_multi_treasure_game.envs.treasure_game_impl_._constants import BANNER, TORCH, OPEN_SPACE
+
 
 class _Option:
+
     def __init__(self, md, drawer = None):
         self.md = md
         self.drawer = drawer
@@ -16,7 +19,11 @@ class _Option:
     
     def policy_step(self):
         pass
-    
+
+    def empty(self, x, y):
+        type = self.md.object_type_at_cell(x, y)
+        return type in [OPEN_SPACE, TORCH, BANNER]
+
     def run(self):
 
         if(not self.can_run()):
