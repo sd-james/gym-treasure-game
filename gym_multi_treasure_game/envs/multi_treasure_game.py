@@ -1,12 +1,17 @@
+from typing import List
+
 from gym.spaces import Discrete
 
 from gym_multi_treasure_game.envs import TreasureGame
-from gym_multi_treasure_game.envs.pca.base_pca import BasePCA, PCA_N
+from gym_multi_treasure_game.envs.pca.base_pca import BasePCA, PCA_STATE, PCA_INVENTORY
 from gym_multi_treasure_game.envs.treasure_game import make_path, get_dir_name
 from gym_multi_treasure_game.envs.treasure_game_impl_.treasure_game_drawer import TreasureGameDrawer_
 from gym_multi_treasure_game.envs.treasure_game_impl_.treasure_game_impl import TreasureGameImpl_, create_options
 from s2s.env.s2s_env import MultiViewEnv, View, S2SEnv
 import matplotlib.pyplot as plt
+
+from s2s.image import Image
+
 
 def to_image(image, mode='L'):
     img = I.fromarray(np.uint8(image), mode=mode)
@@ -66,7 +71,8 @@ class MultiTreasureGame(MultiViewEnv, TreasureGame, S2SEnv):
     def available_mask(self) -> np.ndarray:
         return super().available_mask
 
-    def __init__(self, version_number: int, pca: BasePCA = None):
+    def __init__(self, version_number: int, split_inventory=False, pcas: List[BasePCA] = None, fancy_graphics=False,
+                 render_bg=True):
         self._version_number = version_number
 
         if version_number == 0:
@@ -76,7 +82,8 @@ class MultiTreasureGame(MultiViewEnv, TreasureGame, S2SEnv):
             super().__init__()
             return
 
-        self._pca = pca
+        self._split_inventory = split_inventory
+        self._pcas = pcas
         dir = make_path(get_dir_name(__file__), 'layouts')
         self._env = TreasureGameImpl_(make_path(dir, 'domain_v{}.txt'.format(version_number)),
                                       make_path(dir, 'domain-objects_v{}.txt'.format(version_number)),
@@ -87,6 +94,12 @@ class MultiTreasureGame(MultiViewEnv, TreasureGame, S2SEnv):
         s = self._env.get_state()
         self.observation_space = Box(np.float32(0.0), np.float32(1.0), shape=(len(s),))
         self.viewer = None
+        self.fancy_graphics = fancy_graphics
+        self.render_background = render_bg
+
+    @property
+    def version(self):
+        return self._version_number
 
     def __str__(self):
         return "TreasureGameV{}".format(self._version_number)
@@ -98,7 +111,7 @@ class MultiTreasureGame(MultiViewEnv, TreasureGame, S2SEnv):
 
         if kwargs.get('view', View.PROBLEM) == View.PROBLEM:
 
-            if state[-1] > 0.5:
+            if len(state) > 2 and state[-1] > 0.5:
                 colour = pygame.Color('red')
             else:
                 colour = pygame.Color('green')
@@ -113,7 +126,16 @@ class MultiTreasureGame(MultiViewEnv, TreasureGame, S2SEnv):
             pygame.draw.rect(surface, colour, (left, top, w, h))
             image = pygame.surfarray.array3d(surface).swapaxes(0, 1)
         else:
-            image = self._pca.unflatten(self._pca.uncompress_(state))
+
+            mask = kwargs.get('mask', [0, 1])
+            pcas = np.array(self._pcas)[mask]
+            if not kwargs.get('masked', False):
+                state = state[mask]
+
+            x = [pca.unflatten(pca.uncompress_(s)) for pca, s in zip(pcas, state)]
+            x = map(Image.to_image, x)
+            image = Image.combine(list(x), mode='L')
+            image = Image.to_array(image, mode='L')
         return image
 
     @property
@@ -129,10 +151,14 @@ class MultiTreasureGame(MultiViewEnv, TreasureGame, S2SEnv):
         """
         if view == View.PROBLEM:
             return self.observation_space.shape[-1]
-        return PCA_N
+        return 2
+        # return PCA_STATE + PCA_INVENTORY
 
     def current_agent_observation(self) -> np.ndarray:
-        return np.expand_dims(self._env.current_observation(self.drawer), axis=0)  # 1 x (width x height x channels)
+        if self._split_inventory:
+            return np.array(self._env.current_observation(self.drawer, split=self._split_inventory), dtype=object)
+        return np.expand_dims(self._env.current_observation(self.drawer),
+                              axis=0)  # 1 x (width x height x channels)
 
     def render(self, mode='human', view=View.PROBLEM):
         if self.drawer is None:
@@ -158,6 +184,24 @@ class MultiTreasureGame(MultiViewEnv, TreasureGame, S2SEnv):
                 b = to_image(local_rgb, mode='RGB')
                 rgb = to_array(combine([a, b]))
             self.viewer.imshow(rgb)
+            return rgb
+
+    @staticmethod
+    def animate(version, pcas, plan):
+        def _get_options(operator):
+            if 'options' in operator.data:
+                return operator.data['options']
+            return [operator.option]
+
+        from gym_multi_treasure_game.envs.recordable_multi_treasure_game import RecordableMultiTreasureGame
+        env = RecordableMultiTreasureGame(version, pcas=pcas)
+        env.reset()
+        for operator in plan:
+            for option in _get_options(operator):
+                env.step(option)
+        env.render()
+        env.close()
+        return env.views
 
 
 if __name__ == '__main__':
@@ -165,8 +209,8 @@ if __name__ == '__main__':
     random.seed(0)
     np.random.seed(0)
 
-    for i in range(1, 11):
-        env = MultiTreasureGame(i)
+    for i in range(2, 3):
+        env = MultiTreasureGame(i, split_inventory=True, render_bg=False)
         solved = False
         while not solved:
             state, obs = env.reset()

@@ -91,12 +91,15 @@ class TreasureGame(gym.Env):
         self.observation_space = Box(np.float32(0.0), np.float32(1.0), shape=(len(s),))
         self.viewer = None
         self.local_viewer = None
+        self.fancy_graphics = False
+        self.render_background = False
 
     def reset(self, **kwargs):
         self._env.reset_game()
         self.option_list, self.option_names = create_options(self._env, None)
         if self.drawer is None:
-            self.drawer = TreasureGameDrawer_(self._env)
+            self.drawer = TreasureGameDrawer_(self._env, fancy_graphics=self.fancy_graphics,
+                                              render_bg=self.render_background)
         self.drawer.draw_domain()
         return self._env.get_state()
 
@@ -119,7 +122,8 @@ class TreasureGame(gym.Env):
 
     def render(self, mode='human'):
         if self.drawer is None:
-            self.drawer = TreasureGameDrawer_(self._env)
+            self.drawer = TreasureGameDrawer_(self._env, fancy_graphics=self.fancy_graphics,
+                                              render_bg=self.render_background)
 
         self.drawer.draw_domain()
         rgb = pygame.surfarray.array3d(self.drawer.screen).swapaxes(0, 1)  # swap because pygame

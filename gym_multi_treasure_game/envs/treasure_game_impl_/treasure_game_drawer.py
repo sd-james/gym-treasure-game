@@ -19,7 +19,7 @@ from gym_multi_treasure_game.envs.treasure_game_impl_._constants import X_SCALE,
     AGENT_BOLT_UNLOCKED, AGENT_KEY, AGENT_HANDLE_UP, AGENT_HANDLE_DOWN, AGENT_NORMALISE_CONSTANT, BACKGROUND_SPRITE, \
     WALL_SPRITE, LADDER_SPRITE, DOOR_CLOSED_SPRITE, DOOR_OPEN_SPRITE, KEY_SPRITE, COIN_SPRITE, BOLT_OPEN_SPRITE, \
     BOLT_CLOSED_SPRITE, HERO_SPRITE, HANDLE_BASE_SPRITE, HANDLE_SHAFT_SPRITE, FLOOR_SPRITE, TORCH, TORCH_SPRITE, BANNER, \
-    BANNER_SPRITE
+    BANNER_SPRITE, MARKER, MARKER_SPRITE
 import numpy as np
 from gym_multi_treasure_game.envs.treasure_game_impl_.treasure_game_impl import TreasureGameImpl_
 
@@ -28,7 +28,7 @@ base_dir = os.path.dirname(os.path.realpath(__file__))
 
 class TreasureGameDrawer_:
 
-    def __init__(self, md: TreasureGameImpl_, display_screen=False):
+    def __init__(self, md: TreasureGameImpl_, display_screen=False, fancy_graphics=False, render_bg=True):
 
         self.env = md
 
@@ -44,6 +44,8 @@ class TreasureGameDrawer_:
         self.random_generator.seed(1)
         self.random_images = self.load_random_images()
         self.seed = 12
+        self.fancy_graphics = fancy_graphics
+        self.render_bg = render_bg
 
     # make nice by randomising background
 
@@ -58,6 +60,7 @@ class TreasureGameDrawer_:
             wallpic = pygame.transform.scale(
                 pygame.image.load(base_dir + '/sprites/wall/wall_{}.png'.format(i)).convert_alpha(),
                 (X_SCALE, Y_SCALE))
+
             images[WALL_SPRITE].append(wallpic)
 
             floorpic = pygame.transform.scale(
@@ -95,6 +98,11 @@ class TreasureGameDrawer_:
         bannerpic = pygame.transform.scale(pygame.image.load(base_dir + '/sprites/banner.png').convert_alpha(),
                                            (X_SCALE, Y_SCALE))
         images[BANNER_SPRITE] = bannerpic
+
+        markerpic = pygame.transform.scale(
+            pygame.image.load(base_dir + '/sprites/background/stone_black_marked4.png').convert_alpha(),
+            (X_SCALE, Y_SCALE))
+        images[MARKER_SPRITE] = markerpic
 
         goldpic = pygame.transform.scale(pygame.image.load(base_dir + '/sprites/gold.png').convert_alpha(),
                                          (X_SCALE, Y_SCALE))
@@ -151,15 +159,22 @@ class TreasureGameDrawer_:
                 elif (self.env.description[i][j] == LADDER):
                     self.screen.blit(self.images[LADDER_SPRITE], (j * X_SCALE, i * Y_SCALE))
                 elif (self.env.description[i][j] == OPEN_SPACE):
-                    self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                    if self.render_bg:
+                        self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
                 elif (self.env.description[i][j] == TORCH):
-                    self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                    if self.render_bg:
+                        self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
                     self.screen.blit(self._get_random_sprite(TORCH_SPRITE), (j * X_SCALE, i * Y_SCALE))
                 elif (self.env.description[i][j] == BANNER):
-                    self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                    if self.render_bg:
+                        self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
                     self.screen.blit(self.images[BANNER_SPRITE], (j * X_SCALE, i * Y_SCALE))
+                elif (self.env.description[i][j] == MARKER):
+                    if self.render_bg:
+                        self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                    self.screen.blit(self.images[MARKER_SPRITE], (j * X_SCALE, i * Y_SCALE))
 
-        if self.env.facing_right:
+        if self.env.facing_right or not self.fancy_graphics:
             self.screen.blit(self.images[HERO_SPRITE], (self.env.playerx - X_SCALE / 2, self.env.playery))
         else:
             self.screen.blit(pygame.transform.flip(self.images[HERO_SPRITE], True, False),
@@ -188,13 +203,20 @@ class TreasureGameDrawer_:
                 elif (self.env.description[i][j] == LADDER):
                     draw_surf.blit(self.images[LADDER_SPRITE], (j * X_SCALE, i * Y_SCALE))
                 elif (self.env.description[i][j] == OPEN_SPACE):
-                    draw_surf.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                    if self.render_bg:
+                        draw_surf.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
                 elif (self.env.description[i][j] == TORCH):
-                    draw_surf.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                    if self.render_bg:
+                        draw_surf.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
                     draw_surf.blit(self.images[TORCH_SPRITE], (j * X_SCALE, i * Y_SCALE))
                 elif (self.env.description[i][j] == BANNER):
-                    draw_surf.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                    if self.render_bg:
+                        draw_surf.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
                     draw_surf.blit(self.images[BANNER_SPRITE], (j * X_SCALE, i * Y_SCALE))
+                elif (self.env.description[i][j] == MARKER):
+                    if self.render_bg:
+                        draw_surf.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                    draw_surf.blit(self.images[MARKER_SPRITE], (j * X_SCALE, i * Y_SCALE))
 
         return draw_surf
 
@@ -205,7 +227,7 @@ class TreasureGameDrawer_:
         for obj in self.env.objects:
             self.draw_object(obj, draw_surf)
 
-        if self.env.facing_right:
+        if self.env.facing_right or not self.fancy_graphics:
             draw_surf.blit(self.images[HERO_SPRITE], (self.env.playerx - X_SCALE / 2, self.env.playery))
         else:
             draw_surf.blit(pygame.transform.flip(self.images[HERO_SPRITE], True, False),
@@ -239,7 +261,7 @@ class TreasureGameDrawer_:
                 self.draw_object(obj, new_surf)
         self.blit_alpha(surf, new_surf, (0, 0), int(255 * alpha_objs))
 
-        if self.env.facing_right:
+        if self.env.facing_right or not self.fancy_graphics:
             self.blit_alpha(surf, self.images[HERO_SPRITE], (self.env.playerx - X_SCALE / 2, self.env.playery),
                             int(255 * alpha_player))
         else:
@@ -285,7 +307,7 @@ class TreasureGameDrawer_:
             print("unknown object during draw")
             print(type(obj).__name__)
 
-    def draw_local_view(self, state=None):
+    def draw_local_view(self, state=None, split=False):
 
         if state is None:
             x, y = self.env.playerx, self.env.playery
@@ -296,7 +318,12 @@ class TreasureGameDrawer_:
         size_x = X_SCALE * N
         size_y = Y_SCALE * N
 
-        surface = pygame.Surface((size_x, size_y + Y_SCALE))
+        if split:
+            surface = pygame.Surface((size_x, size_y))
+            surface2 = pygame.Surface((size_x, Y_SCALE))
+            surface2.fill((0, 0, 0))
+        else:
+            surface = pygame.Surface((size_x, size_y + Y_SCALE))
         surface.fill((0, 0, 0))
 
         left = max(0, x - X_SCALE // 2 - X_SCALE)
@@ -312,7 +339,11 @@ class TreasureGameDrawer_:
 
         if not np.isnan(bag[0]):
             if int(round(bag[0])) == 1:
-                surface.blit(self.images[KEY_SPRITE], (0, N * Y_SCALE))
+
+                if split:
+                    surface2.blit(self.images[KEY_SPRITE], (0, 0))
+                else:
+                    surface.blit(self.images[KEY_SPRITE], (0, N * Y_SCALE))
             # if int(round(bag[0])) == 0:
             #     pygame.draw.line(surface, (255, 0, 0), (0, N * Y_SCALE),
             #                      (X_SCALE, N * Y_SCALE + Y_SCALE), 2)
@@ -321,8 +352,12 @@ class TreasureGameDrawer_:
 
         if not np.isnan(bag[1]):
             if int(round(bag[1])) == 1:
-                surface.blit(self.images[COIN_SPRITE], (X_SCALE, N * Y_SCALE))
-            # if int(round(bag[1])) == 0:
+
+                if split:
+                    surface2.blit(self.images[COIN_SPRITE], (0, 0))
+                else:
+                    surface.blit(self.images[COIN_SPRITE], (0, N * Y_SCALE))
+                    # if int(round(bag[1])) == 0:
             #     pygame.draw.line(surface, (255, 0, 0), (X_SCALE, N * Y_SCALE),
             #                      (X_SCALE * 2, N * Y_SCALE + Y_SCALE), 2)
             #     pygame.draw.line(surface, (255, 0, 0), (2 * X_SCALE, N * Y_SCALE),
@@ -336,4 +371,6 @@ class TreasureGameDrawer_:
         #     self.screen.blit(self.images[KEY_SPRITE], (0, N * Y_SCALE))
         # pygame.display.flip()
 
+        if split:
+            return surface, surface2
         return surface

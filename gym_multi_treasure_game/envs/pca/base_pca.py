@@ -3,8 +3,10 @@ import pickle
 import cv2
 import numpy as np
 
-SIZE = (72, 96)
-PCA_N = 30
+# SIZE = (72, 96)
+
+PCA_STATE = 25
+PCA_INVENTORY = 5
 
 
 class BasePCA:
@@ -56,10 +58,20 @@ class BasePCA:
             return self._mean
         return self._pca.mean_
 
+    def size(self, image):
+
+        if len(image.shape) == 1:
+            # do the inverse
+            # TODO: HARD CODED
+            N = image.shape[0] // 72
+            return 72, N
+
+        return tuple(np.array(image.shape[0:2]) // 2)
+
     def scale(self, image):
 
         # resize image
-        smaller = cv2.resize(image, SIZE, interpolation=cv2.INTER_AREA)
+        smaller = cv2.resize(image, self.size(image), interpolation=cv2.INTER_AREA)
         # smaller = cv2.resize(image, (0, 0), fx=0.25, fy=0.25)
         # plt.imshow(smaller)
         # plt.show()
@@ -78,8 +90,9 @@ class BasePCA:
     def representation(self, image, **kwargs):
 
         # get a PCA representation of the image
+        size = self.size(image)
         y = self.compress_(image, **kwargs)
-        decoded = self.uncompress_(y).reshape(SIZE[::-1])
+        decoded = self.uncompress_(y).reshape(size[::-1])
         return np.uint8(decoded)
 
     def uncompress_(self, image):
@@ -94,7 +107,7 @@ class BasePCA:
         n_non_images = 0
         compress = list()
         for i in range(state.shape[0] - n_non_images):
-            smaller = cv2.resize(state[i], SIZE, interpolation=cv2.INTER_AREA)
+            smaller = cv2.resize(state[i], self.size(state[i]), interpolation=cv2.INTER_AREA)
             compress.append(smaller)
 
         for i in range(-n_non_images, 0, 1):
@@ -139,16 +152,19 @@ class BasePCA:
         return np.uint8(np.dot(rgb[..., :3], [0.299, 0.587, 0.114]))
 
     def unflatten(self, image):
-        return np.reshape(image, SIZE[::-1])
+        return np.reshape(image, self.size(image)[::-1])
 
     def flat_gray(self, image):
         return np.reshape(self.rgb2gray_(image), (image.shape[0] * image.shape[1]))
 
     def add_state_(self, X, idx, state):
+
+        state = np.expand_dims(state, axis=0)
+
         n_non_ims = 0
         for i in range(state.shape[0] - n_non_ims):  # -2 because last one xy and second last is inventory
 
-            image = cv2.resize(state[i], SIZE, interpolation=cv2.INTER_AREA)
+            image = cv2.resize(state[i], self.size(state[i]), interpolation=cv2.INTER_AREA)
 
             X[idx, :] = np.reshape(self.rgb2gray_(image), (image.shape[0] * image.shape[1]))
             idx += 1
@@ -165,9 +181,12 @@ class BasePCA:
             if first:
                 first = False
                 # -2 because the last is the position and second last is inventory
+                size = self.size(state)
                 n_non_ims = 0
                 X = np.zeros(
-                    shape=((len(trajectory) + 1) * (state.shape[0] - n_non_ims), SIZE[0] * SIZE[1]))
+                    shape=((len(trajectory) + 1)
+                           # * (state.shape[0] - n_non_ims)
+                           , size[0] * size[1]))
                 j = self.add_state_(X, j, state)
             j = self.add_state_(X, j, next_state)
         return X
@@ -177,10 +196,10 @@ class BasePCA:
         data = list()
         for episode in episodes:
             data.append(self.extract_(episode))
-        print("Extracted data")
+        print("Extracted data.bak")
         X = np.vstack(tuple(data))
         print(X.shape)
-        print("Fitting data")
+        print("Fitting data.bak")
         self.fit(X)
 
         print("Data fitted")

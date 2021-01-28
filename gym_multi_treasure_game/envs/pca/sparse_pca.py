@@ -3,7 +3,7 @@ from sklearn.decomposition import SparsePCA as SPCA
 import pickle
 import numpy as np
 
-from gym_multi_treasure_game.envs.pca import BasePCA
+from gym_multi_treasure_game.envs.pca.base_pca import BasePCA
 
 
 class SparsePCA(BasePCA):

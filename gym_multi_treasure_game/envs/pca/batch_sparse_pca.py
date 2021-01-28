@@ -1,6 +1,6 @@
 from sklearn.decomposition import MiniBatchSparsePCA
 
-from gym_multi_treasure_game.envs.pca import BasePCA
+from gym_multi_treasure_game.envs.pca.base_pca import BasePCA
 
 
 class BatchSparsePCA(BasePCA):

@@ -11,7 +11,7 @@ from gym_multi_treasure_game.envs.treasure_game_impl_._constants import X_SCALE,
     LADDER, \
     ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT, ACTION_JUMP, ACTION_INTERACT, AGENT_DOOR_CLOSED, AGENT_GOLD, \
     AGENT_BOLT_LOCKED, AGENT_DOOR_OPEN, AGENT_BOLT_UNLOCKED, AGENT_HANDLE_DOWN, AGENT_HANDLE_UP, AGENT_KEY, \
-    AGENT_OPEN_SPACE, AGENT_WALL, AGENT_LADDER, AGENT_NORMALISE_CONSTANT, TORCH, BANNER
+    AGENT_OPEN_SPACE, AGENT_WALL, AGENT_LADDER, AGENT_NORMALISE_CONSTANT, TORCH, BANNER, MARKER
 
 JUMP_REWARD = -5
 STEP_REWARD = -1
@@ -214,7 +214,7 @@ class TreasureGameImpl_:
             return WALL
 
         obj = self.map[y][x]
-        if obj == TORCH or obj == BANNER:
+        if obj == TORCH or obj == BANNER or obj == MARKER:
             obj = OPEN_SPACE
         return obj
 
@@ -367,10 +367,10 @@ class TreasureGameImpl_:
 
         for obj in self.objects:
             if (isinstance(obj, Bolt) or isinstance(obj, Handle)) and obj.has_state():
-            # if (obj.has_state()):
+                # if (obj.has_state()):
                 state_vec = state_vec + obj.get_state()
 
-        return state_vec
+        return np.array(state_vec)
 
     def get_state_descriptors(self):
 
@@ -504,9 +504,14 @@ class TreasureGameImpl_:
         else:
             raise ValueError
 
-    def current_observation(self, drawer):
-        surf =  drawer.draw_local_view()
-        return pygame.surfarray.array3d(surf).swapaxes(0, 1)  # swap because pygame
+    def current_observation(self, drawer, split=False):
+        if split:
+            surf, surf2 = drawer.draw_local_view(split=True)
+            # swap because pygame
+            return pygame.surfarray.array3d(surf).swapaxes(0, 1), pygame.surfarray.array3d(surf2).swapaxes(0, 1)
+        else:
+            surf = drawer.draw_local_view()
+            return pygame.surfarray.array3d(surf).swapaxes(0, 1)  # swap because pygame
 
 
 def create_options(md, drawer=None):

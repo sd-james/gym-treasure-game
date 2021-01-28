@@ -4,6 +4,8 @@ Created on Sun Feb 16 18:10:26 2014
 
 @author: gdk
 """
+import warnings
+
 from gym_multi_treasure_game.envs.treasure_game_impl_._constants import BANNER, TORCH, OPEN_SPACE
 
 
@@ -36,7 +38,10 @@ class _Option:
             act = self.policy_step()
             rew = self.md.step(act)
             totrew = totrew + rew
-            
+
+            if totrew < -1000:
+                raise ValueError('We are stuck!!')
+
             if(self.drawer != None):
                 self.drawer.draw_domain()
 
