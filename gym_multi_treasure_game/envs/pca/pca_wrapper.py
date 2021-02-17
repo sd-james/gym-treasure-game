@@ -8,6 +8,7 @@ import numpy as np
 
 from gym_multi_treasure_game.envs.pca.base_pca import BasePCA, PCA_STATE, PCA_INVENTORY
 from gym_multi_treasure_game.envs.pca.pca import PCA
+from s2s.core.explore import compute_mask
 from s2s.env.s2s_env import MultiViewEnv, View
 from s2s.image import Image
 
@@ -57,12 +58,7 @@ class PCAWrapper(gym.Wrapper):
                 surface, surface2 = self.drawer.draw_local_view(split=True)
                 local_rgb = pygame.surfarray.array3d(surface).swapaxes(0, 1)  # swap because pygame
                 local_rgb2 = pygame.surfarray.array3d(surface2).swapaxes(0, 1)  # swap because pygame
-                import matplotlib.pyplot as plt
-                plt.imshow(local_rgb)
-                plt.show()
                 local_rgb = self._pca.representation(local_rgb)
-                plt.imshow(local_rgb)
-                plt.show()
                 local_rgb2 = self._pca2.representation(local_rgb2)
                 local_rgb = Image.combine([Image.to_image(local_rgb), Image.to_image(local_rgb2)], mode='L')
 
@@ -88,24 +84,28 @@ if __name__ == '__main__':
     random.seed(0)
     np.random.seed(0)
     pca = PCA(PCA_STATE)
-    pca.load('models/no_bg_pca_state.dat')
+    pca.load('models/dropped_key_pca_state.dat')
 
     pca2 = PCA(PCA_INVENTORY)
-    pca2.load('models/no_bg_pca_inventory.dat')
-    for i in range(1, 11):
-        env = PCAWrapper(MultiTreasureGame(i, split_inventory=True, render_bg=False), pca, pca2=pca2)
+    pca2.load('models/dropped_key_pca_inventory.dat')
+    for i in range(9, 10):
+        env = PCAWrapper(MultiTreasureGame(i, split_inventory=True, render_bg=True), pca, pca2=pca2)
         state, obs = env.reset()
         env.render('human', view=View.AGENT)
         # print(state)
-        for N in range(100):
+        for N in range(1000):
             mask = env.available_mask
             action = np.random.choice(np.arange(env.action_space.n), p=mask / mask.sum())
             next_state, next_obs, reward, done, info = env.step(action)
             # print(next_state)
+            blah = compute_mask(obs, next_obs)
             env.render('human', view=View.AGENT)
+            obs = next_obs
+            state = next_state
             if done:
                 print("{}: WIN: {}".format(i, N))
                 print(info)
+                time.sleep(10)
                 env.close()
                 break
-            time.sleep(1)
+            time.sleep(0.1)

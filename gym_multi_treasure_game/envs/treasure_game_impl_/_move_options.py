@@ -447,7 +447,7 @@ class interact_option(_Option):
                 if (isinstance(obj, Handle)):
                     return True
                 elif (isinstance(obj, Bolt)):
-                    if (self.md.player_got_key()):
+                    if (self.md.player_got_key() and obj.locked):
                         return True
 
         return False

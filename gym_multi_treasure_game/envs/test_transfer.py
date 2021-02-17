@@ -1,219 +1,196 @@
-from typing import List
+import sys
 
-import cv2
-import imageio
-import numpy as np
+from memory_profiler import profile
 
+sys.path.append('/home/steve/PycharmProjects/pyddl')
+sys.path.append('/home/steve/PycharmProjects/hierarchical-skills-to-symbols')
+sys.path.append('/home/steve/PycharmProjects/gym-multi-treasure-game')
+
+
+import traceback
+
+from tqdm import tqdm, trange
+
+from gym_multi_treasure_game.envs.configs import CONFIG
+from gym_multi_treasure_game.envs.eval2 import build_graph, evaluate_n_step
+from gym_multi_treasure_game.envs.evaluate import evaluate_manually, evaluate_with_network, validate, \
+    evaluate_similarity
+from gym_multi_treasure_game.envs.mock_env import MockTreasureGame
 from gym_multi_treasure_game.envs.multi_treasure_game import MultiTreasureGame
 from gym_multi_treasure_game.envs.pca.base_pca import PCA_STATE, PCA_INVENTORY
 from gym_multi_treasure_game.envs.pca.pca import PCA
 from gym_multi_treasure_game.envs.pca.pca_wrapper import PCAWrapper
 from pyddl.hddl.hddl_domain import HDDLDomain
-from pyddl.pddl.clause import Clause
 from pyddl.pddl.domain import Domain
-from pyddl.pddl.predicate import Predicate
-from s2s.core.build_model import build_model
 from s2s.env.s2s_env import View
-from s2s.env.walkthrough_env import FourFourRoomsEnv
 from s2s.hierarchy.discover_hddl_methods import discover_hddl_tasks
-from s2s.pddl.linked_operator import LinkedPDDLOperator
 from s2s.planner.mgpt_planner import mGPT
-from s2s.portable.exploration import collect_data_with_existing
+from s2s.portable.build_model_transfer import build_transfer_model
 from s2s.portable.problem_symbols import _ProblemProposition
-from s2s.utils import make_dir, make_path, save, load
+from s2s.portable.transfer import extract, _unexpand_macro_operator
+from s2s.utils import make_path, save, load, Recorder, now, range_without, exists
+import numpy as np
+import networkx as nx
+import pandas as pd
 
 
-def _make_video(directory: str, name: str, frames):
-    height, width, layers = np.array(frames[0]).shape
-    print("Writing to video {}".format(env.name))
-    file = make_path(directory, name)
-    # imageio.mimsave('{}.gif'.format(file), frames, fps=60)
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    video = cv2.VideoWriter('{}.mp4'.format(file), fourcc, 60, (width, height))
-    for frame in frames:
-        # writer.writeFrame(frame[:, :, ::-1])
-        video.write(cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR))
-    video.release()
-    # writer.close()  # close the writer
+def build_abstractions(domain):
+    if domain is None:
+        return domain
+    tasks = discover_hddl_tasks(domain, verbose=True, draw=False, subgoal_method='voterank')
+    operators = list()
+    for task in tasks:
+        for method in task.methods:
+            operators.append(method.flatten())
+    linked_ops = set()
+    for operator in operators:
+        assert 'operators' in operator.data
+        chain = operator.data['operators']
+        operator.data['operators'] = [x.data['parent'] for x in chain]
+        linked_ops.add(_unexpand_macro_operator(operator))
+    return linked_ops
 
 
-def make_video(env, domain: Domain, path: List[str], directory='.', pcas=None, name='global') -> None:
-    """
-    Create a video of the agent solving the task
-    :param version_number: the environment number
-    :param domain: the PDDL domain
-    :param path: the list of PDDL operators to execute
-    :param directory: the directory where the video should be written to
-    """
+def try_build(save_dir, task, n_episodes, previous_predicates, previous_operators, build_hierarchy=False,
+              verbose=False):
+    env = MockTreasureGame(task)
 
-    plan = list()
-    for option in path:
-        operator = [x for x in domain.operators if x.name.lower() == option]
-        assert len(operator) == 1
-        operator = operator[0]
-        plan.append(operator)
+    if len(previous_predicates) == 0:
+        previous_predicates = None
+    if len(previous_operators) == 0:
+        previous_operators = None
 
-    # make video!!
-    global_views = MultiTreasureGame.animate(env.version, pcas, plan)
-    _make_video(directory, '{}-{}'.format(env.name, name), global_views)
+    domain, problem, info = build_transfer_model(env, previous_predicates, previous_operators,
+                                                 reload=True,
+                                                 save_dir=save_dir,
+                                                 n_jobs=16,
+                                                 seed=None,
+                                                 n_episodes=n_episodes,
+                                                 options_per_episode=1000,
+                                                 view=View.AGENT,
+                                                 **CONFIG[task],
+                                                 visualise=False,
+                                                 save_data=False,
+                                                 verbose=verbose)
+    if build_hierarchy:
+        methods = build_abstractions(domain)
+        for op in methods:
+            domain.add_linked_operator(op)
+        # domain = build_abstractions(domain)
+    return env, domain, problem, info['n_samples'], info['copied_symbols'], info['copied_operators']
+
+# @profile
+def get_transferable_symbols(domain: Domain, previous_predicates, previous_operators):
+    curr_preds, curr_ops = extract(domain)
+    predicates = set(previous_predicates)
+    predicates.update(curr_preds)
+    operators = set(previous_operators)
+    operators.update(curr_ops)
+    return list(predicates), list(operators)
 
 
-def extract(domain):
-    operators = set()
-    for operator in domain.operators:
-        parent = operator.data.get('parent', None)
-        if parent is not None:
-            operators.add(parent)
-        elif 'operators' in operator.data:
-            chain = operator.data['operators']
-            operator.data['operators'] = [x.data['parent'] for x in chain]
-            operators.add(LinkedPDDLOperator(operator))
-        else:
-            raise ValueError
-
-    return [predicate for predicate in domain.predicates if predicate != Predicate.not_failed()
-            and not isinstance(predicate, _ProblemProposition)], list(operators)
+def scale(baseline, experiment, task, score):
+    baseline = baseline.get_score(experiment, task, 50)
+    return score / baseline
 
 
 if __name__ == '__main__':
 
-    TASK = 1
-    pca = PCA(PCA_STATE)
+    baseline = load('baseline.pkl')
 
-    pca.load('pca/models/mod_no_fancy_pca_state.dat')
+    THRESHOLD = np.inf  # 0.5
+    import warnings
 
-    pca2 = PCA(PCA_INVENTORY)
+    warnings.filterwarnings("ignore")
 
-    pca2.load('pca/models/mod_no_fancy_pca_inventory.dat')
+    recorder = Recorder()
+    transfer_recorder = Recorder()
+    all_stats = Recorder()
 
-    env = PCAWrapper(MultiTreasureGame(TASK, pcas=[pca, pca2], split_inventory=True), pca, pca2=pca2)
-    save_dir = '../data.bak/{}'.format(TASK)
+    dir = '/media/hdd/treasure_data'
+    tasks = range_without(1, 5)
+    USE_HIERARCHY = False
 
-    domain = load(make_path(save_dir, 'linked_domain.pkl'))
-    problem = load(make_path(save_dir, 'linked_problem.pkl'))
-    clusterer = load(make_path(save_dir, 'quick_cluster.pkl'))
-    prop = next(x for x in problem.init if isinstance(x, _ProblemProposition))
-    start_link = int(prop.name[prop.name.index('_') + 1:])
+    for experiment in range(1):
+        np.random.shuffle(tasks)
+        previous_predicates = list()
+        previous_operators = list()
 
-    tasks = discover_hddl_tasks(domain, problem, start_link, verbose=True, draw=True, subgoal_method='voterank')
-    hddl = HDDLDomain(domain)
-    exit(0)
-    #
-    # for task in tasks:
-    #     hddl.add_task(task)
-    # save(hddl, make_path(save_dir, 'hddl_domain.pkl'))
-    # save(hddl, make_path(save_dir, 'domain.hddl'), binary=False)
-    # flat_domain = hddl.to_pddl()
-    # save(flat_domain, make_path(save_dir, 'flat_domain.pkl'))
-    #
-    # exit(0)
+        for task_count, task in tqdm(enumerate(tasks)):
+            ground_truth = nx.read_gpickle('graph_{}.pkl'.format(task))
 
-    domain = load(make_path(save_dir, 'flat_domain.pkl'))
+            best_score = -np.inf
+            best_domain = None
 
-    previous_predicates, previous_operators = extract(domain)
-    for op in previous_operators:
-        op.clear()
+            for n_episodes in trange(1, 51):
+                for op in previous_operators:
+                    op.clear()
+                save_dir = make_path(dir, task, experiment, n_episodes)
 
-    collect_data_with_existing(env, previous_predicates, previous_operators, max_timestep=np.inf, random_search=True,
-                               max_episode=30, verbose=True, seed=None, n_jobs=1)
+                if task_count > 0 or USE_HIERARCHY:
+                    env, domain, problem, n_samples, n_syms, n_ops = try_build(save_dir, task, n_episodes,
+                                                                               previous_predicates,
+                                                                               previous_operators,
+                                                                               build_hierarchy=USE_HIERARCHY)
+                else:
+                    domain = None
+                    n_samples = len(pd.read_pickle('{}/transition.pkl'.format(save_dir), compression='gzip'))
+                    n_syms = 0
+                    n_ops = 0
+                try:
 
-    done = False
-    while not done:
-        state, obs = env.reset()
-        # print(state)
-        for N in range(1000):
-            mask = env.available_mask
+                    if domain is None:
+                        graph_path = make_path(save_dir, "info_graph_{}_{}_{}.pkl".format(experiment, task, n_episodes))
+                        assert exists(graph_path)
+                        graph = nx.read_gpickle(graph_path)
+                    else:
+                        graph = build_graph(domain)
+                    score, stats = evaluate_n_step(ground_truth, graph, get_stats=True)
+                    score = scale(baseline, experiment, task, score)
+                    all_stats.record(experiment, task, n_episodes, stats)
 
-            select_action(state, obs, mask, domain.operators)
+                    # score, graph = evaluate_similarity(ground_truth, domain, draw=False, n_jobs=16)
+                    # nx.write_gpickle(graph, make_path(save_dir, "graph_{}_{}_{}.pkl".format(experiment, task, n_episodes)))
+                except Exception as e:
+                    traceback.print_exc()
+                    score = 0
+                    # found = False
 
-            action = np.random.choice(np.arange(env.action_space.n), p=mask / mask.sum())
-            next_state, next_obs, reward, done, info = env.step(action)
-            # print(next_state)
+                recorder.record(experiment, (task_count, task), n_episodes, score)
+                print(
+                    "Time: {}\nExperiment: {}\nTask: {}({})\nHierarchy?: {}\nEpisodes: {}\nSamples: {}\nScore: {}\nPredicates: {}/{}\n"
+                    "Operators: {}/{}\n"
+                        .format(now(), experiment, task, task_count, USE_HIERARCHY, n_episodes, n_samples, score,
+                                n_syms,
+                                len(previous_predicates), n_ops, len(previous_operators)))
 
-            env.render('human', view=View.AGENT)
-            if done:
-                print("{}: WIN: {}".format(i, N))
-                print(info)
-                solved = True
-                env.close()
-                break
-            time.sleep(0.5)
+                if domain is not None:
+                    transfer_recorder.record(experiment, (task_count, task), (n_episodes, n_samples),
+                                             (n_syms, n_ops, len(domain.predicates),
+                                              len(domain.operators),
+                                              len(previous_operators)))
 
-    # planner = mGPT(mdpsim_path='../../../hierarchical-skills-to-symbols/s2s/planner/mdpsim-1.23/mdpsim',
-    #                mgpt_path='../../../hierarchical-skills-to-symbols/s2s/planner/mgpt/planner',
-    #                wsl=False,
-    #                max_time=30)
-    #
-    # n_retries = 10
-    # for _ in range(n_retries):
-    #     valid, output = planner.find_plan(domain, problem)
-    #
-    #     if not valid:
-    #         print("An error occurred :(")
-    #         print(output)
-    #         break
-    #     elif not output.valid:
-    #         print("Planner could not find a valid plan :(")
-    #         print(output.raw_output)
-    #     else:
-    #         print("We found a plan!")
-    #         # get the plan out
-    #         print(output.raw_output)
-    #         print(output.path)
-    #         make_video(env, domain, output.path)
-    #         make_video(env, domain, output.path, pcas=[pca, pca2], name='pcas')
-    #         break
+                if score > best_score:
+                    best_score = score
+                    if domain is not None:
+                        best_domain = domain
+                    else:
+                        best_domain = n_episodes
 
-    prop = next(x for x in problem.init if isinstance(x, _ProblemProposition))
-    start_link = int(prop.name[prop.name.index('_') + 1:])
+                if score >= THRESHOLD:
+                    break
 
-    tasks = discover_hddl_tasks(domain, problem, start_link, verbose=True, draw=False, subgoal_method='voterank')
-    hddl = HDDLDomain(domain)
-    # str(hddl)
-    # count = 0
-    for task in tasks:
-        hddl.add_task(task)
+            if isinstance(best_domain, int):
+                path = make_path(dir, task, experiment, best_domain)
+                print(path)
+                try:
+                    _, best_domain, _, _, _, _ = try_build(path, task, best_domain,
+                                                           previous_predicates, previous_operators)
+                except:
+                    _, best_domain, _, _, _, _ = try_build(path, task, best_domain,
+                                                           previous_predicates, previous_operators)
 
-        # if count > 10:
-        #     break
-        #
-        # if "Level-2" in task.name:
-        #     hddl.add_task(task)
-        #     count +=1
-
-    save(hddl, make_path(save_dir, 'hddl_domain.pkl'))
-    save(hddl, make_path(save_dir, 'domain.hddl'), binary=False)
-    flat_domain = hddl.to_pddl()
-    save(flat_domain, make_path(save_dir, 'flat_domain.pkl'))
-    save(flat_domain, make_path(save_dir, 'flat_domain.hddl'), binary=False)
-
-    exit(0)
-
-    print("PLANNING!")
-
-    planner = mGPT(mdpsim_path='../../../hierarchical-skills-to-symbols/s2s/planner/mdpsim-1.23/mdpsim',
-                   mgpt_path='../../../hierarchical-skills-to-symbols/s2s/planner/mgpt/planner',
-                   wsl=False,
-                   max_time=30)
-
-    n_retries = 10
-    for _ in range(n_retries):
-        valid, output = planner.find_plan(flat_domain, problem, verbose=True)
-
-        if not valid:
-            print("An error occurred :(")
-            print(output)
-            break
-        elif not output.valid:
-            print("Planner could not find a valid plan :(")
-            print(output.raw_output)
-        else:
-            print("We found a plan!")
-            # get the plan out
-            print(output.raw_output)
-            print(output.path)
-
-            make_video(env, domain, output.path, directory=save_dir)
-            break
-
-    # print(hddl)
+            previous_predicates, previous_operators = get_transferable_symbols(best_domain, previous_predicates,
+                                                                               previous_operators)
+        save((recorder, transfer_recorder), 'transfer_results.pkl')
+        save(all_stats, 'transfer_stats.pkl')

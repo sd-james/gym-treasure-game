@@ -196,11 +196,11 @@ class BasePCA:
         data = list()
         for episode in episodes:
             data.append(self.extract_(episode))
-        print("Extracted data.bak")
+        print("Extracted data")
         X = np.vstack(tuple(data))
         print(X.shape)
-        print("Fitting data.bak")
+        print("Fitting data")
         self.fit(X)
 
         print("Data fitted")
-        print(self.explained_variance_ratio)
+        # print(self.explained_variance_ratio)

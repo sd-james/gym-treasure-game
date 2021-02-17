@@ -1,6 +1,7 @@
 from typing import List
 
 from gym.spaces import Discrete
+from tqdm import trange
 
 from gym_multi_treasure_game.envs import TreasureGame
 from gym_multi_treasure_game.envs.pca.base_pca import BasePCA, PCA_STATE, PCA_INVENTORY
@@ -145,14 +146,26 @@ class MultiTreasureGame(MultiViewEnv, TreasureGame, S2SEnv):
     def describe_option(self, option: int) -> str:
         return self.option_names[option]
 
-    def n_dims(self, view: View) -> int:
+    def n_dims(self, view: View, flat=False) -> int:
         """
         The dimensionality of the state space, depending on the view
         """
         if view == View.PROBLEM:
             return self.observation_space.shape[-1]
+        if flat:
+            return PCA_STATE + PCA_INVENTORY
         return 2
-        # return PCA_STATE + PCA_INVENTORY
+
+    @property
+    def underlying_state(self):
+        state_vec = []
+        (cell_x, cell_y) = self._env.get_player_cell()
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                state_vec.append(self._env._get_object(cell_x + dx, cell_y + dy))
+        return np.array([np.array(state_vec),
+                         np.array([int(self._env.player_got_key()), int(self._env.player_got_goldcoin())])
+                         ], dtype=object)
 
     def current_agent_observation(self) -> np.ndarray:
         if self._split_inventory:
@@ -203,16 +216,19 @@ class MultiTreasureGame(MultiViewEnv, TreasureGame, S2SEnv):
         env.close()
         return env.views
 
+    def close(self):
+        pygame.quit()
+        super().close()
 
 if __name__ == '__main__':
 
     random.seed(0)
     np.random.seed(0)
 
-    for i in range(2, 3):
-        env = MultiTreasureGame(i, split_inventory=True, render_bg=False)
+    for i in range(3, 10):
+        env = MultiTreasureGame(i, split_inventory=True, render_bg=True)
         solved = False
-        while not solved:
+        for ep in trange(50):
             state, obs = env.reset()
             # print(state)
             for N in range(1000):
@@ -225,7 +241,8 @@ if __name__ == '__main__':
                 if done:
                     print("{}: WIN: {}".format(i, N))
                     print(info)
+                    # time.sleep(10)
                     solved = True
-                    env.close()
+                    # env.close()
                     break
-                time.sleep(0.5)
+                time.sleep(1)

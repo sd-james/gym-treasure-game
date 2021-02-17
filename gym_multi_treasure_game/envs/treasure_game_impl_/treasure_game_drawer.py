@@ -336,27 +336,35 @@ class TreasureGameDrawer_:
 
         # draw inventory
         bag = [int(self.env.player_got_key()), int(self.env.player_got_goldcoin())]
-
-        if not np.isnan(bag[0]):
-            if int(round(bag[0])) == 1:
-
-                if split:
-                    surface2.blit(self.images[KEY_SPRITE], (0, 0))
-                else:
-                    surface.blit(self.images[KEY_SPRITE], (0, N * Y_SCALE))
-            # if int(round(bag[0])) == 0:
-            #     pygame.draw.line(surface, (255, 0, 0), (0, N * Y_SCALE),
-            #                      (X_SCALE, N * Y_SCALE + Y_SCALE), 2)
-            #     pygame.draw.line(surface, (255, 0, 0), (X_SCALE, N * Y_SCALE),
-            #                      (0, N * Y_SCALE + Y_SCALE), 2)
-
+        has_gold = False
         if not np.isnan(bag[1]):
             if int(round(bag[1])) == 1:
-
+                has_gold = True
                 if split:
                     surface2.blit(self.images[COIN_SPRITE], (0, 0))
                 else:
                     surface.blit(self.images[COIN_SPRITE], (0, N * Y_SCALE))
+        if not has_gold:
+            if not np.isnan(bag[0]):
+                if int(round(bag[0])) == 1:
+
+                    if split:
+                        surface2.blit(self.images[KEY_SPRITE], (0, 0))
+                        if self.env.key_dropped():
+                            pygame.draw.line(surface2, (250, 182, 27), (0, 0),
+                                             (X_SCALE, Y_SCALE), 5)
+                            pygame.draw.line(surface2, (250, 182, 27), (X_SCALE, N * Y_SCALE),
+                                             (0, Y_SCALE), 5)
+                    else:
+                        surface.blit(self.images[KEY_SPRITE], (0, N * Y_SCALE))
+                        if self.env.key_dropped():
+                            pygame.draw.line(surface, (250, 182, 27), (0, N * Y_SCALE),
+                                             (X_SCALE, N * Y_SCALE + Y_SCALE), 5)
+                            pygame.draw.line(surface, (250, 182, 27), (X_SCALE, N * Y_SCALE),
+                                             (0, N * Y_SCALE + Y_SCALE), 5)
+
+
+
                     # if int(round(bag[1])) == 0:
             #     pygame.draw.line(surface, (255, 0, 0), (X_SCALE, N * Y_SCALE),
             #                      (X_SCALE * 2, N * Y_SCALE + Y_SCALE), 2)

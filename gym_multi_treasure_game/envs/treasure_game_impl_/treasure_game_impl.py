@@ -11,7 +11,8 @@ from gym_multi_treasure_game.envs.treasure_game_impl_._constants import X_SCALE,
     LADDER, \
     ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT, ACTION_JUMP, ACTION_INTERACT, AGENT_DOOR_CLOSED, AGENT_GOLD, \
     AGENT_BOLT_LOCKED, AGENT_DOOR_OPEN, AGENT_BOLT_UNLOCKED, AGENT_HANDLE_DOWN, AGENT_HANDLE_UP, AGENT_KEY, \
-    AGENT_OPEN_SPACE, AGENT_WALL, AGENT_LADDER, AGENT_NORMALISE_CONSTANT, TORCH, BANNER, MARKER
+    AGENT_OPEN_SPACE, AGENT_WALL, AGENT_LADDER, AGENT_NORMALISE_CONSTANT, TORCH, BANNER, MARKER, AGENT_MARKER, \
+    AGENT_BANNER, AGENT_TORCH
 
 JUMP_REWARD = -5
 STEP_REWARD = -1
@@ -40,7 +41,7 @@ class TreasureGameImpl_:
         self.player_width = X_SCALE // 2
         self.player_height = Y_SCALE
         self.facing_right = True
-
+        self._key_dropped = False
         self.total_actions = 0
 
     def reset_game(self):
@@ -61,6 +62,7 @@ class TreasureGameImpl_:
         self.player_height = Y_SCALE
         self.facing_right = True
 
+        self._key_dropped = False
         self.total_actions = 0
 
     def extract_interactives(self, fname):
@@ -425,11 +427,15 @@ class TreasureGameImpl_:
         # if(random.random() > 0.3):
         obj.unlock()
 
+    def key_dropped(self):
+        return self._key_dropped
+
     def drop_key(self):
         for obj in self.player_bag:
             if (isinstance(obj, Key)):
-                self.player_bag.remove(obj)
-                obj.move_to(-1, -1)
+                self._key_dropped = True
+                # self.player_bag.remove(obj)
+                # obj.move_to(-1, -1)
                 return
 
     def get_player_cell(self):
@@ -474,6 +480,16 @@ class TreasureGameImpl_:
             if (isinstance(obj, Handle)):
                 self.previously_triggered = False
 
+    def __true_type(self, xc, yc):
+        x = (xc * X_SCALE) + (X_SCALE // 2)
+        y = (yc * Y_SCALE) + (Y_SCALE // 2)
+        if ((x >= self.width) or (x < 0)):
+            return WALL
+        if ((y >= self.height) or (y < 0)):
+            return WALL
+        obj = self.map[y][x]
+        return obj
+
     def _get_object(self, cell_x, cell_y):
         for o in self.objects:
             if o.cx == cell_x and o.cy == cell_y:
@@ -496,7 +512,16 @@ class TreasureGameImpl_:
 
         type = self.object_type_at_cell(cell_x, cell_y)
         if type == OPEN_SPACE:
-            return AGENT_OPEN_SPACE
+
+            type = self.__true_type(cell_x, cell_y)
+            if type == OPEN_SPACE:
+                return AGENT_OPEN_SPACE
+            elif type == MARKER:
+                return AGENT_MARKER
+            elif type == BANNER:
+                return AGENT_BANNER
+            elif type == TORCH:
+                return AGENT_TORCH
         elif type == WALL:
             return AGENT_WALL
         elif type == LADDER:

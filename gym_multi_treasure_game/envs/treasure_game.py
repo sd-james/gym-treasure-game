@@ -6,7 +6,6 @@ import gym
 import numpy as np
 
 import pygame
-from gym.envs.classic_control import rendering
 from gym.spaces import Discrete, Box
 
 from gym_multi_treasure_game.envs.treasure_game_impl_.treasure_game_drawer import TreasureGameDrawer_
@@ -121,6 +120,8 @@ class TreasureGame(gym.Env):
         return state, r, done, {}
 
     def render(self, mode='human'):
+        from gym.envs.classic_control import rendering
+
         if self.drawer is None:
             self.drawer = TreasureGameDrawer_(self._env, fancy_graphics=self.fancy_graphics,
                                               render_bg=self.render_background)

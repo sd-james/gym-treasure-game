@@ -16,7 +16,7 @@ def collect(task):
     episodes = list()
     episodes2 = list()
     for _ in trange(25):
-        env = MultiTreasureGame(task, split_inventory=True, fancy_graphics=False, render_bg=False)
+        env = MultiTreasureGame(task, split_inventory=True, fancy_graphics=False, render_bg=True)
         solved = False
         while not solved:
             episode = list()
@@ -33,6 +33,15 @@ def collect(task):
                 # plt.show()
                 episode.append((obs[0], action, reward, done, next_obs[0]))
                 episode2.append((obs[1], action, reward, done, next_obs[1]))
+
+                # if action == 4:
+                #     import matplotlib.pyplot as plt
+                #     temp = env.current_agent_observation()
+                #     plt.imshow(obs[1])
+                #     plt.show()
+                #     plt.imshow(next_obs[1])
+                #     plt.show()
+
                 obs = next_obs
                 state = next_state
                 # env.render('human', view=View.AGENT)
@@ -56,24 +65,36 @@ if __name__ == '__main__':
 
     warnings.filterwarnings("ignore")
 
-    # functions = [partial(collect, i) for i in range_without(1, 11)]
-    # results = run_parallel(functions, serial=False)
-    # episodes = sum([x for x, _ in results], [])
-    # episodes2 = sum([y for _, y in results], [])
+    functions = [partial(collect, i) for i in range_without(1, 11)]
+    results = run_parallel(functions, serial=False)
+    episodes = sum([x for x, _ in results], [])
+    episodes2 = sum([y for _, y in results], [])
+
+    print('SAVING...')
     #
-    # print('SAVING...')
-    # #
-    # save((episodes, episodes2), 'aa.pkl')
+    save((episodes, episodes2), 'aa.pkl')
     episodes, episodes2 = load('aa.pkl')
 
     print('FITTING...')
+    #
+    # temp = load()
+    # for x in reversed(temp):
+    #     plt.imshow(x)
+    #     plt.show()
 
+    # temp = list()
+    # for x in episodes2:
+    #     for s, a, r, d, s_prime in x:
+    #         temp.append(s_prime)
+    # temp = np.array(temp)[np.unique(temp)]
+    # save(temp)
+    # print(len(temp))
+    # exit(0)
 
-    pca = SparsePCA(PCA_STATE)
-    pca.fit_transitions(episodes)
-    pca.save('models/sparse_no_bg_pca_state.dat')
+    # pca = PCA(PCA_STATE)
+    # pca.fit_transitions(episodes)
+    # pca.save('models/dropped_key_pca_state.dat')
 
     pca = PCA(PCA_INVENTORY)
     pca.fit_transitions(episodes2)
-    pca.save('models/sparse_no_bg_pca_inventory.dat')
-
+    pca.save('models/dropped_key_pca_inventory.dat')

@@ -40,7 +40,9 @@ class _Option:
             totrew = totrew + rew
 
             if totrew < -1000:
-                raise ValueError('We are stuck!!')
+                warnings.warn("We are stuck")
+                break
+                # raise ValueError('We are stuck!!')
 
             if(self.drawer != None):
                 self.drawer.draw_domain()
