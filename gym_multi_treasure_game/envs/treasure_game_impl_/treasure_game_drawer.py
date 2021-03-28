@@ -142,43 +142,56 @@ class TreasureGameDrawer_:
 
         return images
 
-    def draw_domain(self, show_screen=True, ):
+    def draw_domain(self, show_screen=True, alpha=False, redraw=True):
 
         self.random_generator.seed(self.seed)
-        self.screen.fill((0, 0, 0))
+        if redraw:
+            self.screen.fill((0, 0, 0))
 
-        for i in range(0, self.env.cell_height):
-            for j in range(0, self.env.cell_width):
-                if (self.env.description[i][j] == WALL):
+            for i in range(0, self.env.cell_height):
+                for j in range(0, self.env.cell_width):
+                    if (self.env.description[i][j] == WALL):
 
-                    key = WALL_SPRITE
-                    if i > 0 and self.env.description[i - 1][j] != WALL:
-                        key = FLOOR_SPRITE
+                        key = WALL_SPRITE
+                        if i > 0 and self.env.description[i - 1][j] != WALL:
+                            key = FLOOR_SPRITE
 
-                    self.screen.blit(self._get_random_sprite(key), (j * X_SCALE, i * Y_SCALE))
-                elif (self.env.description[i][j] == LADDER):
-                    self.screen.blit(self.images[LADDER_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                elif (self.env.description[i][j] == OPEN_SPACE):
-                    if self.render_bg:
-                        self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
-                elif (self.env.description[i][j] == TORCH):
-                    if self.render_bg:
-                        self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
-                    self.screen.blit(self._get_random_sprite(TORCH_SPRITE), (j * X_SCALE, i * Y_SCALE))
-                elif (self.env.description[i][j] == BANNER):
-                    if self.render_bg:
-                        self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
-                    self.screen.blit(self.images[BANNER_SPRITE], (j * X_SCALE, i * Y_SCALE))
-                elif (self.env.description[i][j] == MARKER):
-                    if self.render_bg:
-                        self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
-                    self.screen.blit(self.images[MARKER_SPRITE], (j * X_SCALE, i * Y_SCALE))
+                        self.screen.blit(self._get_random_sprite(key), (j * X_SCALE, i * Y_SCALE))
+                    elif (self.env.description[i][j] == LADDER):
+                        self.screen.blit(self.images[LADDER_SPRITE], (j * X_SCALE, i * Y_SCALE))
+                    elif (self.env.description[i][j] == OPEN_SPACE):
+                        if self.render_bg:
+                            self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                    elif (self.env.description[i][j] == TORCH):
+                        if self.render_bg:
+                            self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                        self.screen.blit(self._get_random_sprite(TORCH_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                    elif (self.env.description[i][j] == BANNER):
+                        if self.render_bg:
+                            self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                        self.screen.blit(self.images[BANNER_SPRITE], (j * X_SCALE, i * Y_SCALE))
+                    elif (self.env.description[i][j] == MARKER):
+                        if self.render_bg:
+                            self.screen.blit(self._get_random_sprite(BACKGROUND_SPRITE), (j * X_SCALE, i * Y_SCALE))
+                        self.screen.blit(self.images[MARKER_SPRITE], (j * X_SCALE, i * Y_SCALE))
 
         if self.env.facing_right or not self.fancy_graphics:
-            self.screen.blit(self.images[HERO_SPRITE], (self.env.playerx - X_SCALE / 2, self.env.playery))
+
+            if alpha:
+                self.blit_alpha(self.screen, self.images[HERO_SPRITE],
+                                (self.env.playerx - X_SCALE / 2, self.env.playery),
+                                int(255 * 0.3))
+            else:
+                self.screen.blit(self.images[HERO_SPRITE], (self.env.playerx - X_SCALE / 2, self.env.playery))
         else:
-            self.screen.blit(pygame.transform.flip(self.images[HERO_SPRITE], True, False),
-                             (self.env.playerx - X_SCALE / 2, self.env.playery))
+
+            if alpha:
+                self.blit_alpha(self.screen, pygame.transform.flip(self.images[HERO_SPRITE], True, False),
+                                (self.env.playerx - X_SCALE / 2, self.env.playery),
+                                int(255 * 0.3))
+            else:
+                self.screen.blit(pygame.transform.flip(self.images[HERO_SPRITE], True, False),
+                                 (self.env.playerx - X_SCALE / 2, self.env.playery))
         # draw objects in front of agent for PCA purposes
         for obj in self.env.objects:
             self.draw_object(obj, self.screen)
@@ -362,8 +375,6 @@ class TreasureGameDrawer_:
                                              (X_SCALE, N * Y_SCALE + Y_SCALE), 5)
                             pygame.draw.line(surface, (250, 182, 27), (X_SCALE, N * Y_SCALE),
                                              (0, N * Y_SCALE + Y_SCALE), 5)
-
-
 
                     # if int(round(bag[1])) == 0:
             #     pygame.draw.line(surface, (255, 0, 0), (X_SCALE, N * Y_SCALE),

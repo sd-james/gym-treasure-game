@@ -11,13 +11,15 @@ from s2s.image import Image
 
 class RecordableDrawer(TreasureGameDrawer_):
 
-    def __init__(self, recorder, env):
+    def __init__(self, recorder, env, global_only=False, alpha=False, redraw=True):
         super().__init__(env, fancy_graphics=True)
         self.recorder = recorder
+        self._global_only = global_only
+        self._alpha = alpha
+        self._redraw = redraw
 
-    def draw_domain(self, show_screen=True, ):
-        super().draw_domain(show_screen=show_screen)
-
+    def draw_domain(self, show_screen=True, **kwargs):
+        super().draw_domain(show_screen=show_screen, alpha=self._alpha, redraw=kwargs.get('redraw', self._redraw))
 
         if self.recorder.pcas is not None:
             surface, surface2 = self.draw_local_view(split=True)
@@ -26,23 +28,26 @@ class RecordableDrawer(TreasureGameDrawer_):
             local_rgb = self.recorder.pcas[0].representation(local_rgb)
             local_rgb2 = self.recorder.pcas[1].representation(local_rgb2)
             local_rgb = Image.combine([Image.to_image(local_rgb), Image.to_image(local_rgb2)], mode='L')
-            local_rgb = np.stack((local_rgb,)*3, axis=-1)
+            local_rgb = np.stack((local_rgb,) * 3, axis=-1)
         else:
             surface = self.draw_local_view()
             local_rgb = pygame.surfarray.array3d(surface).swapaxes(0, 1)  # swap because pygame
 
         rgb = pygame.surfarray.array3d(self.screen).swapaxes(0, 1)  # swap because pygame
         a = to_image(rgb, mode='RGB')
-        b = to_image(local_rgb, mode='RGB')
-        rgb = to_array(combine([a, b]))
+        if self._global_only:
+            rgb = a
+        else:
+            b = to_image(local_rgb, mode='RGB')
+            rgb = to_array(combine([a, b]))
         self.recorder.views.append(rgb)
 
 
 class RecordableMultiTreasureGame(MultiTreasureGame):
 
-    def __init__(self, version_number: int, pcas=None):
+    def __init__(self, version_number: int, pcas=None, global_only=False, alpha=False, redraw=True):
         super().__init__(version_number, True, pcas, fancy_graphics=True)
-        self.drawer = RecordableDrawer(self, self._env)
+        self.drawer = RecordableDrawer(self, self._env, global_only=global_only, alpha=alpha, redraw=redraw)
         # self.drawer = TreasureGameDrawer_(self._env, fancy_graphics=True)
         self.pcas = pcas
         self.option_list, self.option_names = create_options(self._env, self.drawer)
@@ -64,7 +69,7 @@ class RecordableMultiTreasureGame(MultiTreasureGame):
             local_rgb = self.pcas[0].representation(local_rgb)
             local_rgb2 = self.pcas[1].representation(local_rgb2)
             local_rgb = Image.combine([Image.to_image(local_rgb), Image.to_image(local_rgb2)], mode='L')
-            local_rgb = np.stack((local_rgb,)*3, axis=-1)
+            local_rgb = np.stack((local_rgb,) * 3, axis=-1)
 
 
 
@@ -85,9 +90,14 @@ class RecordableMultiTreasureGame(MultiTreasureGame):
             self.viewer.imshow(rgb)
             return rgb
 
+    def reset_view(self):
+        self.drawer.screen.fill((0, 0, 0))
+        self.drawer.draw_domain(show_screen=True, redraw=True)
+        self.views = list()
+
     def reset(self, **kwargs):
         ret = super().reset(**kwargs)
-        self.drawer = RecordableDrawer(self, self._env)
+        self.reset_view()
         self.option_list, self.option_names = create_options(self._env, self.drawer)
 
         self.render()

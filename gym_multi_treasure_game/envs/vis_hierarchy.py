@@ -48,7 +48,7 @@ def _fit_predicates(predicates):
 
 
 def visualise_hierarchy(version, hddl: HDDLDomain, pcas):
-    tasks = {task for task in hddl.tasks if 'Level-3' in task.name}
+    tasks = {task for task in hddl.tasks if 'Level-1' in task.name}
     env = PCAWrapper(RecordableMultiTreasureGame(version, pcas=pcas), pcas[0], pcas[1])
 
     classifiers = _fit_predicates(hddl.predicates)

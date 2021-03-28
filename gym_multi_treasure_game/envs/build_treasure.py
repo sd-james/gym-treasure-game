@@ -1,5 +1,6 @@
+import pygame
+
 from gym_multi_treasure_game.envs.configs import CONFIG
-from gym_multi_treasure_game.envs.evaluate import evaluate_manually
 from gym_multi_treasure_game.envs.multi_treasure_game import MultiTreasureGame
 from gym_multi_treasure_game.envs.pca.base_pca import PCA_STATE, PCA_INVENTORY
 from gym_multi_treasure_game.envs.pca.pca import PCA
@@ -15,7 +16,7 @@ from s2s.env.s2s_env import View
 from s2s.hierarchy.discover_hddl_methods import discover_hddl_tasks
 from s2s.planner.mgpt_planner import mGPT
 from s2s.portable.problem_symbols import _ProblemProposition
-from s2s.utils import make_dir, make_path, save, load
+from s2s.utils import make_dir, make_path, save, load, indent
 
 if __name__ == '__main__':
 
@@ -33,6 +34,11 @@ if __name__ == '__main__':
     pca2 = PCA(PCA_INVENTORY)
 
     pca2.load('pca/models/dropped_key_pca_inventory.dat')
+
+    # env = MultiTreasureGame(TASK, pcas=[pca, pca2], split_inventory=True)
+    # env.render()
+    # surf = env.drawer.draw_background_to_surface()
+    # pygame.image.save(surf, 'background.png')
 
     env = PCAWrapper(MultiTreasureGame(TASK, pcas=[pca, pca2], split_inventory=True), pca, pca2=pca2)
 
@@ -114,13 +120,26 @@ if __name__ == '__main__':
 
     tasks = discover_hddl_tasks(domain, verbose=True, draw=False, subgoal_method='voterank', problem=problem,
                                 initial_link=start_link, reduce_graph=3)
+
+    for task in tasks:
+        if 'Level-3' in task.name:
+            print(task.name)
+            print()
+            for method in task.methods:
+                operator = method.flatten()
+                print(indent(method))
+                print(indent(operator.data['options']))
+                print()
+
+    exit(0)
+
     hddl = HDDLDomain(domain)
     # count = 0
     for task in tasks:
         hddl.add_task(task)
     print(hddl)
 
-    exit(0)
+    # exit(0)
 
     visualise_hierarchy(TASK, hddl, [pca, pca2])
 
@@ -137,7 +156,7 @@ if __name__ == '__main__':
     # save(flat_domain, make_path(save_dir, 'flat_domain.pkl'))
     # save(flat_domain, make_path(save_dir, 'flat_domain.hddl'), binary=False)
 
-    exit(0)
+    # exit(0)
 
     print("PLANNING!")
 
