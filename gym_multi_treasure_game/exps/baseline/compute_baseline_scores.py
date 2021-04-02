@@ -71,7 +71,7 @@ def evaluate_models(dir, tasks, N, exact_length, n_exps=5):
                 save_dir = make_path(dir, task, experiment, n_episodes)
                 n_samples = -1
                 try:
-                    graph_path = make_path(save_dir, "info_graph_{}_{}_{}.pkl".format(experiment, task, n_episodes))
+                    graph_path = make_path(save_dir, "pred_edge_info_graph_{}_{}_{}.pkl".format(experiment, task, n_episodes))
                     assert exists(graph_path)
                     graph = nx.read_gpickle(graph_path)
                     # draw(graph, False)
@@ -137,7 +137,7 @@ if __name__ == '__main__':
     else:
         n_samples = load(make_path(save_dir, 'nsamples.pkl'))
 
-    n_exps = 5
+    n_exps = 10
     exact_length = False
     N = -1
     n_jobs = 20

@@ -386,4 +386,5 @@ def build_graph(domain):
         positions[state.id] = __get_pos(problem_data, obs_data[1])
         graph.nodes[state.id]['state'] = problem_data
         graph.nodes[state.id]['obs'] = obs_data
+        graph.nodes[state.id]['predicates'] = state.predicates
     return graph

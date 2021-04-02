@@ -51,26 +51,29 @@ if __name__ == '__main__':
     warnings.filterwarnings("ignore")
 
     dir = '/media/hdd/treasure_data'
+
     # tasks = range(int(args.task), int(args.task) + 1)
     tasks = range(1, 11)
     previous_predicates = list()
     previous_operators = list()
     for experiment in range(5):
         for task_count, task in enumerate(tasks):
-            ground_truth = nx.read_gpickle('graph_{}.pkl'.format(task))
+            ground_truth = nx.read_gpickle('../exps/data/ground_truth/graph_{}.pkl'.format(task))
             best_score = -np.inf
             best_domain = None
             for n_episodes in range(1, 51):
                 save_dir = make_path(dir, task, experiment, n_episodes)
 
-                if exists(make_path(save_dir, "info_graph_{}_{}_{}.pkl".format(experiment, task, n_episodes))):
-                    continue
+                graph = nx.read_gpickle(make_path(save_dir, "efsdsdf{}_{}_{}.pkl".format(experiment, task, n_episodes)))
+
+                # if exists(make_path(save_dir, "info_graph_{}_{}_{}.pkl".format(experiment, task, n_episodes))):
+                #     continue
 
                 try:
                     env, domain, problem, n_samples, n_syms, n_ops = try_build(save_dir, task, n_episodes,
                                                                                previous_predicates,
                                                                                previous_operators)
                     graph = build_graph(domain)
-                    nx.write_gpickle(graph, make_path(save_dir, "info_graph_{}_{}_{}.pkl".format(experiment, task, n_episodes)))
+                    nx.write_gpickle(graph, make_path(save_dir, "efsdsdf{}_{}_{}.pkl".format(experiment, task, n_episodes)))
                 except:
                     traceback.print_exc()
