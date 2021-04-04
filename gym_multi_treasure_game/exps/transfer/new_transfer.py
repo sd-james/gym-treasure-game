@@ -9,7 +9,7 @@ from gym_multi_treasure_game.exps.eval2 import build_graph, evaluate_n_step, __g
 from gym_multi_treasure_game.envs.mock_env import MockTreasureGame
 from gym_multi_treasure_game.envs.multi_treasure_game import MultiTreasureGame
 from gym_multi_treasure_game.envs.pca.base_pca import PCA_STATE, PCA_INVENTORY
-from gym_multi_treasure_game.exps.graph_utils import merge, clean, fit_classifiers
+from gym_multi_treasure_game.exps.graph_utils import merge, clean, clean_and_fit, extract_pairs, merge_and_clean
 from pyddl.hddl.hddl_domain import HDDLDomain
 from pyddl.pddl.domain import Domain
 from s2s.env.s2s_env import View
@@ -113,7 +113,7 @@ def draw(graph, ground_truth, show=True):
 
 if __name__ == '__main__':
 
-    seed=42
+    seed=0
     random.seed(seed)
     np.random.seed(seed)
 
@@ -137,7 +137,7 @@ if __name__ == '__main__':
     USE_HIERARCHY = False
 
 
-    previous_graphs = list()
+    previous_graph = None
     classifiers = dict()
 
     for task_count, (task, experiment) in tqdm(enumerate(zip(tasks, experiments))):
@@ -156,9 +156,9 @@ if __name__ == '__main__':
             assert exists(graph_path)
             graph = nx.read_gpickle(graph_path)
             original_graph = graph.copy()
-            if len(previous_graphs) > 0:
+            if previous_graph is not None:
                 data = pd.read_pickle(make_path(save_dir, "transition.pkl"), compression='gzip')
-                graph = merge(graph, previous_graphs, data, classifiers)
+                graph = merge(graph, previous_graph, data, classifiers)
 
             # draw(graph, False)
             # draw(ground_truth, True)
@@ -205,9 +205,8 @@ if __name__ == '__main__':
 
         # previous_predicates, previous_operators = get_transferable_symbols(best_domain, previous_predicates,
         #                                                                    previous_operators)
-
-        previous_graphs.append((task, clean(original_graph)))
-        classifiers = fit_classifiers(classifiers, task, original_graph)
+        classifiers = clean_and_fit(classifiers, task, original_graph)
+        previous_graph = merge_and_clean(previous_graph, original_graph, task, classifiers)
 
     save(recorder, )
     save((recorder, transfer_recorder), make_path(base_dir, 'ntransfer_results.pkl'))

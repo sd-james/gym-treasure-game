@@ -1,4 +1,6 @@
+import inspect
 import random
+import sys
 import traceback
 
 import matplotlib.pyplot as plt
@@ -110,9 +112,39 @@ def draw(graph, ground_truth, show=True):
     if show:
         plt.show()
 
+
+def get_size(obj, seen=None):
+    """Recursively finds size of objects in bytes"""
+    size = sys.getsizeof(obj)
+    if seen is None:
+        seen = set()
+    obj_id = id(obj)
+    if obj_id in seen:
+        return 0
+    # Important mark as seen *before* entering recursion to gracefully handle
+    # self-referential objects
+    seen.add(obj_id)
+    if hasattr(obj, '__dict__'):
+        for cls in obj.__class__.__mro__:
+            if '__dict__' in cls.__dict__:
+                d = cls.__dict__['__dict__']
+                if inspect.isgetsetdescriptor(d) or inspect.ismemberdescriptor(d):
+                    size += get_size(obj.__dict__, seen)
+                break
+    if isinstance(obj, dict):
+        size += sum((get_size(v, seen) for v in obj.values()))
+        size += sum((get_size(k, seen) for k in obj.keys()))
+    elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
+        size += sum((get_size(i, seen) for i in obj))
+
+    if hasattr(obj, '__slots__'):  # can have __slots__ with __dict__
+        size += sum(get_size(getattr(obj, s), seen) for s in obj.__slots__ if hasattr(obj, s))
+
+    return size
+
 if __name__ == '__main__':
 
-    seed=42
+    seed = 0
     random.seed(seed)
     np.random.seed(seed)
 
@@ -139,6 +171,14 @@ if __name__ == '__main__':
     previous_operators = list()
 
     for task_count, (task, experiment) in tqdm(enumerate(zip(tasks, experiments))):
+
+
+        print(get_size(previous_predicates)/1e6)
+        print(get_size(previous_predicates)/1e6)
+        print(get_size(recorder)/1e6)
+        print(get_size(transfer_recorder)/1e6)
+        print(get_size(all_stats)/1e6)
+
         baseline_ep, baseline_score = get_best(baseline, experiment, task)
         ground_truth = nx.read_gpickle(make_path(base_dir, 'ground_truth', 'graph_{}.pkl'.format(task)))
 
@@ -164,16 +204,17 @@ if __name__ == '__main__':
             try:
 
                 if domain is None:
-                    graph_path = make_path(save_dir, "info_graph_{}_{}_{}.pkl".format(experiment, task, n_episodes))
+                    graph_path = make_path(save_dir, "pred_edge_info_graph_{}_{}_{}.pkl".format(experiment, task, n_episodes))
                     assert exists(graph_path)
                     graph = nx.read_gpickle(graph_path)
                 else:
                     graph = build_graph(domain)
 
-                draw(graph, False)
-                draw(ground_truth, True)
-
-                raw_score, stats = evaluate_n_step(ground_truth, graph, get_stats=True)
+                # draw(graph, False)
+                # draw(ground_truth, True)
+                raw_score = baseline_score
+                stats = {}
+                # raw_score, stats = evaluate_n_step(ground_truth, graph, get_stats=True)
                 score = raw_score / baseline_score
                 all_stats.record(experiment, task, n_episodes, stats)
 
@@ -212,15 +253,15 @@ if __name__ == '__main__':
         if isinstance(best_domain, int):
             path = make_path(dir, task, experiment, best_domain)
             print(path)
-            # try:
-            #     _, best_domain, _, _, _, _ = try_build(path, task, best_domain,
-            #                                            previous_predicates, previous_operators)
-            # except:
-            #     _, best_domain, _, _, _, _ = try_build(path, task, best_domain,
-            #                                            previous_predicates, previous_operators)
+            try:
+                _, best_domain, _, _, _, _ = try_build(path, task, best_domain,
+                                                       previous_predicates, previous_operators)
+            except:
+                _, best_domain, _, _, _, _ = try_build(path, task, best_domain,
+                                                       previous_predicates, previous_operators)
 
-        # previous_predicates, previous_operators = get_transferable_symbols(best_domain, previous_predicates,
-        #                                                                    previous_operators)
+        previous_predicates, previous_operators = get_transferable_symbols(best_domain, previous_predicates,
+                                                                           previous_operators)
 
     save(recorder, )
     save((recorder, transfer_recorder), make_path(base_dir, 'ntransfer_results.pkl'))
