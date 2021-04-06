@@ -65,17 +65,17 @@ if __name__ == '__main__':
 
     warnings.filterwarnings("ignore")
 
-    functions = [partial(collect, i) for i in range_without(1, 11)]
-    results = run_parallel(functions, serial=False)
-    episodes = sum([x for x, _ in results], [])
-    episodes2 = sum([y for _, y in results], [])
-
-    print('SAVING...')
+    # functions = [partial(collect, i) for i in range_without(1, 11)]
+    # results = run_parallel(functions, serial=False)
+    # episodes = sum([x for x, _ in results], [])
+    # episodes2 = sum([y for _, y in results], [])
     #
-    save((episodes, episodes2), 'aa.pkl')
+    # print('SAVING...')
+    # #
+    # save((episodes, episodes2), 'aa.pkl')
     episodes, episodes2 = load('aa.pkl')
-
-    print('FITTING...')
+    #
+    # print('FITTING...')
     #
     # temp = load()
     # for x in reversed(temp):
@@ -91,8 +91,8 @@ if __name__ == '__main__':
     # print(len(temp))
     # exit(0)
 
-    # pca = PCA(PCA_STATE)
-    # pca.fit_transitions(episodes)
+    pca = PCA(PCA_STATE)
+    pca.fit_transitions(episodes)
     # pca.save('models/dropped_key_pca_state.dat')
 
     pca = PCA(PCA_INVENTORY)

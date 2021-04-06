@@ -1,14 +1,17 @@
 import random
 import traceback
+from collections import defaultdict
 
 import matplotlib.pyplot as plt
 from tqdm import tqdm, trange
 
 from gym_multi_treasure_game.envs.configs import CONFIG
+from gym_multi_treasure_game.exps.baseline.generate_test_cases import _get_random_path, _extract_plan
 from gym_multi_treasure_game.exps.eval2 import build_graph, evaluate_n_step, __get_pos
 from gym_multi_treasure_game.envs.mock_env import MockTreasureGame
 from gym_multi_treasure_game.envs.multi_treasure_game import MultiTreasureGame
 from gym_multi_treasure_game.envs.pca.base_pca import PCA_STATE, PCA_INVENTORY
+from gym_multi_treasure_game.exps.evaluate_plans import evaluate_plans
 from gym_multi_treasure_game.exps.graph_utils import merge, clean, clean_and_fit, extract_pairs, merge_and_clean
 from pyddl.hddl.hddl_domain import HDDLDomain
 from pyddl.pddl.domain import Domain
@@ -111,14 +114,37 @@ def draw(graph, ground_truth, show=True):
     if show:
         plt.show()
 
+
+def get_valid_exp(dir, task):
+    experiments = range_without(0, 10)
+    np.random.shuffle(experiments)
+
+    for experiment in experiments:
+        if exists(make_path(dir, task, experiment, 49,
+                            "pred_edge_info_graph_{}_{}_{}.pkl".format(experiment, task, 49))):
+            return experiment
+    return None
+
+
 if __name__ == '__main__':
 
-    seed=0
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("seed")
+    args = parser.parse_args()
+
+    length = 3
+    seed = int(args.seed)
     random.seed(seed)
     np.random.seed(seed)
 
     base_dir = '../data'
-    baseline = load(make_path(base_dir, 'baseline.pkl'))
+    # baseline = load(make_path(base_dir, 'baseline.pkl'))
+
+    baseline, _ = load(make_path(base_dir, '{}_ntransfer_results.pkl'.format(length)))
+
+    test_cases = load('../data/3_test_cases.pkl')
 
     import warnings
 
@@ -136,11 +162,11 @@ if __name__ == '__main__':
 
     USE_HIERARCHY = False
 
-
     previous_graph = None
     classifiers = dict()
 
-    for task_count, (task, experiment) in tqdm(enumerate(zip(tasks, experiments))):
+    for task_count, task in tqdm(enumerate(tasks)):
+        experiment = get_valid_exp(dir, task)
         baseline_ep, baseline_score = get_best(baseline, experiment, task)
         ground_truth = nx.read_gpickle(make_path(base_dir, 'ground_truth', 'graph_{}.pkl'.format(task)))
 
@@ -149,25 +175,29 @@ if __name__ == '__main__':
 
         # for n_episodes in trange(1, 51):
         original_graph = None
-        for n_episodes in trange(baseline_ep, 51):
+        for n_episodes in range(1, 51):
             save_dir = make_path(dir, task, experiment, n_episodes)
 
             graph_path = make_path(save_dir, "pred_edge_info_graph_{}_{}_{}.pkl".format(experiment, task, n_episodes))
             assert exists(graph_path)
             graph = nx.read_gpickle(graph_path)
             original_graph = graph.copy()
-            if previous_graph is not None:
-                data = pd.read_pickle(make_path(save_dir, "transition.pkl"), compression='gzip')
-                graph = merge(graph, previous_graph, data, classifiers)
+
+            data = pd.read_pickle(make_path(save_dir, "transition.pkl"), compression='gzip')
+            graph, clusterer, to_keep = merge(graph, previous_graph, data, classifiers, n_jobs=20)
 
             # draw(graph, False)
             # draw(ground_truth, True)
 
-            raw_score, stats = 0.6, None
+            # raw_score, stats = 0.1, None
+
+            raw_score = evaluate_plans(test_cases[task], ground_truth, graph, clusterer, n_jobs=20)
+            stats = None
             # raw_score, stats = evaluate_n_step(ground_truth, graph, get_stats=True)
             score = raw_score / baseline_score
-            all_stats.record(experiment, task, n_episodes, stats)
+            print(n_episodes, raw_score, score, baseline.get_score(experiment, task, n_episodes))
 
+            all_stats.record(experiment, task, n_episodes, (to_keep, graph))
 
             recorder.record(experiment, (task_count, task), n_episodes, score)
             # print(
@@ -190,7 +220,7 @@ if __name__ == '__main__':
             #         best_domain = n_episodes
 
             if score >= 1:
-                assert raw_score >= baseline_score
+                # assert raw_score >= baseline_score
                 break
 
         if isinstance(best_domain, int):
@@ -205,9 +235,12 @@ if __name__ == '__main__':
 
         # previous_predicates, previous_operators = get_transferable_symbols(best_domain, previous_predicates,
         #                                                                    previous_operators)
+        print("Merging...")
+        time = now()
         classifiers = clean_and_fit(classifiers, task, original_graph)
         previous_graph = merge_and_clean(previous_graph, original_graph, task, classifiers)
+        print('Merging took {} ms'.format(now() - time))
 
     save(recorder, )
-    save((recorder, transfer_recorder), make_path(base_dir, 'ntransfer_results.pkl'))
-    save(all_stats, make_path(base_dir, 'transfer_stats.pkl'))
+    save((recorder, transfer_recorder), make_path(base_dir, 'ntransfer_results_{}.pkl'.format(seed)))
+    save(all_stats, make_path(base_dir, 'transfer_stats_{}.pkl'.format(seed)))

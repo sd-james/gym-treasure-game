@@ -1,6 +1,7 @@
 import itertools
 import traceback
-from collections import defaultdict
+from collections import defaultdict, ChainMap
+from functools import partial
 from typing import Set
 
 import networkx as nx
@@ -10,16 +11,38 @@ from tqdm import tqdm
 from s2s.estimators.oc_svc import OCSupportVectorClassifier
 from s2s.pddl.pddl import Predicate
 from s2s.portable.quick_cluster import QuickCluster
-from s2s.utils import load
+from s2s.utils import load, run_parallel, now
 
 KNN = load('/home/steve/PycharmProjects/gym-multi-treasure-game/gym_multi_treasure_game/exps/data/knn.pkl')
 
 
 def extract_options(edge):
     if edge['level'] == 0:
-        return [edge['action'].option]
+        return [edge['action']]
 
     raise NotImplementedError
+
+
+def multiple_shortest_path_edges(graph, source, target):
+    """
+    Return the edges along the shortest path from source to target, or None if no path exists
+    """
+    if not nx.has_path(graph, source, target):
+        return None
+    plans = list()
+    prev_size = -1
+    for path in nx.shortest_simple_paths(graph, source, target):
+        path_graph = nx.path_graph(path)
+        if prev_size > -1 and len(path_graph) > prev_size:
+            break
+        prev_size = len(path_graph)
+        # Read attributes from each edge
+        plan = list()
+        for ea in path_graph.edges():
+            edge = graph.edges[ea[0], ea[1]]
+            plan.append(edge)
+        plans.append(plan)
+    return plans
 
 
 def shortest_path_edges(graph, source, target):
@@ -90,11 +113,12 @@ def find_nodes(state, graph):
 
 
 def _iter(transition_data):
+    option = transition_data['option']
     start = transition_data['agent_state']
     start2 = transition_data['state']
     end = transition_data['next_agent_state']
     end2 = transition_data['next_state']
-    return [(x, y, a, b) for x, y, a, b in zip(start, end, start2, end2)]
+    return [(o, x, y, a, b) for o, x, y, a, b in zip(option, start, end, start2, end2)]
 
 
 def _is_similar(node, other_node, prev_task, classifiers):
@@ -221,7 +245,7 @@ def _refers_to(state, classifiers):
         classifier = classifiers[i]
         if classifier is None:
             return False
-        if classifier.probability(s, use_mask=False) < 0.5:
+        if classifier.probability(s, use_mask=False) < 0.1:
             return False
     return True
 
@@ -255,74 +279,117 @@ def find_similar(node, graph, old_to_new):
     return matching_nodes
 
 
-def merge(current_graph, previous_graph, transition_data, classifiers):
-    # assume current graph already linked
-    # use transition data to find nodes to transfer in.
-    # link up with problem specific data
-
-    # def _exists(node):
-    #     for n in current_graph.nodes:
-    #         if _is_similar(current_graph.nodes[n], node, previous_task, classifiers):
-    #             return True
-    #     return False
-
+def get_edges_to_keep(graph, classifiers, transition_data, clusterer):
+    seen = set()
     to_keep = defaultdict(list)
 
-    # TODO parallelise
-    clusterer = None
-    # Go through data and identify node-edge-nodes to keep
-    k = 0
+
+    for option, d, dprime, s, sprime in _iter(transition_data):
+        start_link = clusterer.get(s, index_only=True)
+        end_link = clusterer.get(sprime, index_only=True)
+        memo = dict()
+        for u, v, a in graph.edges(data=True):
+            if (u, v, start_link, end_link) in seen:
+                continue
+
+            if a['action'] != option:
+                continue
+
+            start_refers = memo.get(u, _refers_to(d, classifiers[u]))
+            memo[u] = start_refers
+            if not start_refers:
+                continue
+            end_refers = memo.get(v, _refers_to(dprime, classifiers[v]))
+            memo[v] = end_refers
+            if not end_refers:
+                continue
+            # if refers_to(d, dprime, u, v, classifiers):
+            seen.add((u, v, start_link, end_link))
+            to_keep[(u, v, Hashabledict(a))].append((s, sprime))
+
+    return to_keep
+
+
+def compute_mapping(current_graph, classifiers, to_keep):
     mapping = dict()
-    for d, dprime, s, sprime in tqdm(_iter(transition_data)):
-        if clusterer is None:
-            clusterer = QuickCluster(len(s), 0.1)
-        clusterer.add(s)
-        clusterer.add(sprime)
-        for u, v, a in previous_graph.edges(data=True):
-            if refers_to(d, dprime, u, v, classifiers):
-                to_keep[(u, v, Hashabledict(a))].append((s, sprime))
-        k += 1
-        # if k > 20:
-        #     break
-
-    added = set()
-
-    for (u, v, edge), states in tqdm(to_keep.items()):
+    for (u, v, edge), states in tqdm(to_keep):
         if u not in mapping:
             mapping[u] = find_similar_nodes(u, current_graph, classifiers)
         if v not in mapping:
             mapping[v] = find_similar_nodes(u, current_graph, classifiers)
+    return mapping
 
-    for (u, v, edge), states in tqdm(to_keep.items()):
-        for s, sprime in states:
-            start_link = clusterer.get(s, index_only=True)
-            if (u, start_link) in added:
-                start_nodes = ["{}:{}".format(u, start_link)]
-            else:
-                start_nodes = mapping[u]
-                start_nodes = [x for x in start_nodes if 'state' in current_graph.nodes[x] and
-                               clusterer.get(current_graph.nodes[x]['state'], index_only=True) == start_link]
-                if len(start_nodes) == 0:
-                    # add to graph
-                    added.add((u, start_link))
+def merge(current_graph, previous_graph, transition_data, classifiers, n_jobs):
+    # assume current graph already linked
+    # use transition data to find nodes to transfer in.
+    # link up with problem specific data
+
+    clusterer = None
+    for _, d, dprime, s, sprime in _iter(transition_data):
+        if clusterer is None:
+            clusterer = QuickCluster(len(s), 0.1)
+        clusterer.add(s)
+        clusterer.add(sprime)
+    to_keep = None
+    if previous_graph is not None:
+        print("Finding edges...")
+        time = now()
+        splits = np.array_split(transition_data, n_jobs)
+        functions = [partial(get_edges_to_keep, previous_graph, classifiers, data, clusterer) for data in splits]
+        result = run_parallel(functions)
+        to_keep = dict(ChainMap(*result))
+        print("Finding {} edges took {} ms".format(len(to_keep), now() - time))
+
+        print("Finding mapping...")
+        time = now()
+        splits = np.array_split(list(to_keep.items()), n_jobs)
+        functions = [partial(compute_mapping, current_graph, classifiers, data) for data in splits]
+        result = run_parallel(functions)
+        mapping = dict(ChainMap(*result))
+        print("Computing mapping took {} ms".format(now() - time))
+
+        # mapping = dict()
+        #
+        # for (u, v, edge), states in tqdm(to_keep.items()):
+        #     if u not in mapping:
+        #         mapping[u] = find_similar_nodes(u, current_graph, classifiers)
+        #     if v not in mapping:
+        #         mapping[v] = find_similar_nodes(u, current_graph, classifiers)
+        print("Integrating to graph...")
+        time = now()
+        added = set()
+        for (u, v, edge), states in tqdm(to_keep.items()):
+            for s, sprime in states:
+                start_link = clusterer.get(s, index_only=True)
+                if (u, start_link) in added:
                     start_nodes = ["{}:{}".format(u, start_link)]
-                    current_graph.add_node("{}:{}".format(u, start_link), **previous_graph.nodes[u])
-            end_link = clusterer.get(sprime, index_only=True)
-            if (v, end_link) in added:
-                end_nodes = ["{}:{}".format(v, end_link)]
-            else:
-                end_nodes = mapping[v]
-                end_nodes = [x for x in end_nodes if 'state' in current_graph.nodes[x] and
-                             clusterer.get(current_graph.nodes[x]['state'], index_only=True) == end_link]
-                if len(end_nodes) == 0:
-                    # add to graph
-                    added.add((v, end_link))
+                else:
+                    start_nodes = mapping[u]
+                    start_nodes = [x for x in start_nodes if 'state' in current_graph.nodes[x] and
+                                   clusterer.get(current_graph.nodes[x]['state'], index_only=True) == start_link]
+                    if len(start_nodes) == 0:
+                        # add to graph
+                        added.add((u, start_link))
+                        start_nodes = ["{}:{}".format(u, start_link)]
+                        current_graph.add_node("{}:{}".format(u, start_link), **previous_graph.nodes[u])
+                end_link = clusterer.get(sprime, index_only=True)
+                if (v, end_link) in added:
                     end_nodes = ["{}:{}".format(v, end_link)]
-                    current_graph.add_node("{}:{}".format(v, end_link), **previous_graph.nodes[v])
-            for a in start_nodes:
-                for b in end_nodes:
-                    current_graph.add_edge(a, b, **edge)
-    return current_graph
+                else:
+                    end_nodes = mapping[v]
+                    end_nodes = [x for x in end_nodes if 'state' in current_graph.nodes[x] and
+                                 clusterer.get(current_graph.nodes[x]['state'], index_only=True) == end_link]
+                    if len(end_nodes) == 0:
+                        # add to graph
+                        added.add((v, end_link))
+                        end_nodes = ["{}:{}".format(v, end_link)]
+                        current_graph.add_node("{}:{}".format(v, end_link), **previous_graph.nodes[v])
+                for a in start_nodes:
+                    for b in end_nodes:
+                        current_graph.add_edge(a, b, **edge)
+        print("Integrating took {} ms".format(now() - time))
+
+    return current_graph, clusterer, to_keep
     # current_predicates = extract_predicates(current_graph)
     # prev_predicates = extract_predicates(previous_graph)
     # new_to_old = defaultdict(list)
@@ -338,125 +405,125 @@ def merge(current_graph, previous_graph, transition_data, classifiers):
     # new_to_old = defaultdict(list)
     # old_to_new = defaultdict(list)
 
-    newly_added = set()
-
-    for (u, v, edge), (s, sprime) in to_keep.items():
-        edge = dict(edge)
-
-        if previous_graph[u] in newly_added:
-            start_nodes = [u]
-        else:
-            start_nodes = find_similar(previous_graph[u], current_graph, old_to_new)
-
-        if previous_graph[v] in newly_added:
-            end_nodes = [v]
-        else:
-            end_nodes = find_similar(previous_graph[v], current_graph, old_to_new)
-
-        if len(start_nodes) == 0:
-            start_nodes = [u]
-            newly_added.add(u)
-            current_graph.add_node(u, previous_graph[u])
-        if len(end_nodes) == 0:
-            end_nodes = [v]
-            newly_added.add(v)
-            current_graph.add_node(v, previous_graph[v])
-
-        for start in start_nodes:
-            for end in end_nodes:
-                current_graph.add_edge(start, end, **edge)
-
-        if u in current_graph.nodes and v in current_graph.nodes:
-            pass
-
-        start_idx = clusterer.get(s, index_only=True)
-        end_idx = clusterer.get(sprime, index_only=True)
-
-    # ignore these ones!
-    # current_predicates = extract_predicates(current_graph)
-    # prev_predicates = extract_predicates(previous_graph)
+    # newly_added = set()
     #
-    # new_to_old = defaultdict(list)
-    # old_to_new = defaultdict(list)
-    # for previous_predicate in prev_predicates:
-    #     for current in current_predicates:
-    #         if is_similar_predicate(current, previous_predicate, classifiers[(previous_task, previous_predicate)]):
-    #             new_to_old[current].append(previous_predicate)
-    #             old_to_new[previous_predicate].append(current)
-
-    # Add old edges to new graph if applicable
-    # to_link =
+    # for (u, v, edge), (s, sprime) in to_keep.items():
+    #     edge = dict(edge)
+    #
+    #     if previous_graph[u] in newly_added:
+    #         start_nodes = [u]
+    #     else:
+    #         start_nodes = find_similar(previous_graph[u], current_graph, old_to_new)
+    #
+    #     if previous_graph[v] in newly_added:
+    #         end_nodes = [v]
+    #     else:
+    #         end_nodes = find_similar(previous_graph[v], current_graph, old_to_new)
+    #
+    #     if len(start_nodes) == 0:
+    #         start_nodes = [u]
+    #         newly_added.add(u)
+    #         current_graph.add_node(u, previous_graph[u])
+    #     if len(end_nodes) == 0:
+    #         end_nodes = [v]
+    #         newly_added.add(v)
+    #         current_graph.add_node(v, previous_graph[v])
+    #
+    #     for start in start_nodes:
+    #         for end in end_nodes:
+    #             current_graph.add_edge(start, end, **edge)
+    #
+    #     if u in current_graph.nodes and v in current_graph.nodes:
+    #         pass
+    #
+    #     start_idx = clusterer.get(s, index_only=True)
+    #     end_idx = clusterer.get(sprime, index_only=True)
+    #
+    # # ignore these ones!
+    # # current_predicates = extract_predicates(current_graph)
+    # # prev_predicates = extract_predicates(previous_graph)
+    # #
+    # # new_to_old = defaultdict(list)
+    # # old_to_new = defaultdict(list)
+    # # for previous_predicate in prev_predicates:
+    # #     for current in current_predicates:
+    # #         if is_similar_predicate(current, previous_predicate, classifiers[(previous_task, previous_predicate)]):
+    # #             new_to_old[current].append(previous_predicate)
+    # #             old_to_new[previous_predicate].append(current)
+    #
+    # # Add old edges to new graph if applicable
+    # # to_link =
+    # # for u, v, a in previous_graph.edges(data=True):
+    # #
+    # #     start_nodes = find_duplicate_nodes(u)
+    # #     end_nodes = find_duplicate_nodes(v)
+    # #
+    # #     if len(start_nodes) == 0 and len(end_nodes) == 0:
+    # #
+    # #         current_graph.add_node(u, **previous_graph[u])
+    # #         current_graph.add_node(v, **previous_graph[v])
+    #
+    # # we now have a mapping from previous to new predicates.
+    # # Go through node-edge-nodes and integrate into current graph, but replace node with current node if exact match
+    # old_node_to_new_entry = dict()  # map old node id to id in new graph
+    # new_nodes = set()
     # for u, v, a in previous_graph.edges(data=True):
     #
-    #     start_nodes = find_duplicate_nodes(u)
-    #     end_nodes = find_duplicate_nodes(v)
+    #     match_found, start_node = find_similar_node(previous_graph.nodes[u], duplicate_predicates, current_graph)
+    #     if not match_found:
+    #         # add new node to graph
+    #         if u in old_node_to_new_entry:
+    #             start_node = old_node_to_new_entry[u]
+    #         else:
+    #             new_id = len(current_graph.nodes)
+    #             old_node_to_new_entry[u] = new_id
+    #             start_node = new_id
+    #             new_nodes.add(new_id)
+    #             current_graph.add_node(start_node, **previous_graph.nodes[u])
     #
-    #     if len(start_nodes) == 0 and len(end_nodes) == 0:
+    #     match_found, end_node = find_similar_node(previous_graph.nodes[v], duplicate_predicates, current_graph)
+    #     if not match_found:
+    #         # add new node to graph
+    #         if v in old_node_to_new_entry:
+    #             end_node = old_node_to_new_entry[v]
+    #         else:
+    #             new_id = len(current_graph.nodes)
+    #             old_node_to_new_entry[v] = new_id
+    #             end_node = new_id
+    #             new_nodes.add(new_id)
+    #             current_graph.add_node(end_node, **previous_graph.nodes[v])
+    #     current_graph.add_edge(start_node, end_node, **a)
     #
-    #         current_graph.add_node(u, **previous_graph[u])
-    #         current_graph.add_node(v, **previous_graph[v])
-
-    # we now have a mapping from previous to new predicates.
-    # Go through node-edge-nodes and integrate into current graph, but replace node with current node if exact match
-    old_node_to_new_entry = dict()  # map old node id to id in new graph
-    new_nodes = set()
-    for u, v, a in previous_graph.edges(data=True):
-
-        match_found, start_node = find_similar_node(previous_graph.nodes[u], duplicate_predicates, current_graph)
-        if not match_found:
-            # add new node to graph
-            if u in old_node_to_new_entry:
-                start_node = old_node_to_new_entry[u]
-            else:
-                new_id = len(current_graph.nodes)
-                old_node_to_new_entry[u] = new_id
-                start_node = new_id
-                new_nodes.add(new_id)
-                current_graph.add_node(start_node, **previous_graph.nodes[u])
-
-        match_found, end_node = find_similar_node(previous_graph.nodes[v], duplicate_predicates, current_graph)
-        if not match_found:
-            # add new node to graph
-            if v in old_node_to_new_entry:
-                end_node = old_node_to_new_entry[v]
-            else:
-                new_id = len(current_graph.nodes)
-                old_node_to_new_entry[v] = new_id
-                end_node = new_id
-                new_nodes.add(new_id)
-                current_graph.add_node(end_node, **previous_graph.nodes[v])
-        current_graph.add_edge(start_node, end_node, **a)
-
-    # use transition data to link
-    found_nodes = set()
-    for d, dprime, s, sprime in tqdm(_iter(transition_data)):
-
-        # find matching start/end nodes
-        for u, v, a in current_graph.edges(data=True):
-            if is_match(d, dprime, current_graph.nodes[u], current_graph.nodes[v]):
-                found_nodes.add(u)
-                found_nodes.add(v)
-
-    for node in current_graph.nodes:
-        if node not in found_nodes:
-            current_graph.remove_node(node)
-    current_graph.remove_nodes_from(list(nx.isolates(current_graph)))
-
-    # use transition data to find nodes to transfer in.
-    matches = list()
-    for d, dprime, s, sprime in _iter(transition_data):
-
-        for u, v, a in previous_graph.edges(data=True):
-            if u in exists or v in exists:
-                # ignore
-                continue
-
-            if is_match(d, dprime, previous_graph.nodes[u], previous_graph.nodes[v]):
-                matches.append((u, v, a, s, sprime))
-
-    # integrate matches into existing graph!
-    for start_node, end_node, edge, s, s_prime in matches:
-        pass
+    # # use transition data to link
+    # found_nodes = set()
+    # for d, dprime, s, sprime in tqdm(_iter(transition_data)):
+    #
+    #     # find matching start/end nodes
+    #     for u, v, a in current_graph.edges(data=True):
+    #         if is_match(d, dprime, current_graph.nodes[u], current_graph.nodes[v]):
+    #             found_nodes.add(u)
+    #             found_nodes.add(v)
+    #
+    # for node in current_graph.nodes:
+    #     if node not in found_nodes:
+    #         current_graph.remove_node(node)
+    # current_graph.remove_nodes_from(list(nx.isolates(current_graph)))
+    #
+    # # use transition data to find nodes to transfer in.
+    # matches = list()
+    # for d, dprime, s, sprime in _iter(transition_data):
+    #
+    #     for u, v, a in previous_graph.edges(data=True):
+    #         if u in exists or v in exists:
+    #             # ignore
+    #             continue
+    #
+    #         if is_match(d, dprime, previous_graph.nodes[u], previous_graph.nodes[v]):
+    #             matches.append((u, v, a, s, sprime))
+    #
+    # # integrate matches into existing graph!
+    # for start_node, end_node, edge, s, s_prime in matches:
+    #     pass
 
 
 def clean(graph):
@@ -566,21 +633,33 @@ def find_similar_nodes(node, graph, classifiers):
     """
     Find similar nodes in a new graph
     """
-    classifier = classifiers[node]
-    if classifier is None:
+
+    matches = set()
+    misses = set()
+
+    classifiers = classifiers[node]
+    if classifiers is None:
         return list()
     current_matches = list()
     for n in graph.nodes:
         predicates = get_predicates(graph, n)
-        if len(predicates) != len(classifier):
+        if len(predicates) != len(classifiers):
             continue
         found = True
-        for predicate, clas in zip(predicates, classifier):
-            data = predicate.sample(100)
-            prob = clas.probability(data, use_mask=False)
-            if prob < 0.05:
+        for predicate, classifier in zip(predicates, classifiers):
+            if predicate in misses:
                 found = False
                 break
+            elif predicate not in matches:
+                data = predicate.sample(100)
+                prob = classifier.probability(data, use_mask=False)
+                # if prob < 0.05:
+                if prob < 0.5:
+                    found = False
+                    misses.add(predicate)
+                    break
+                else:
+                    matches.add(predicate)
         if found:
             current_matches.append(n)
     return current_matches

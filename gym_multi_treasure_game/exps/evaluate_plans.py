@@ -2,7 +2,8 @@ from functools import partial
 
 import numpy as np
 
-from gym_multi_treasure_game.exps.graph_utils import shortest_path_edges, find_nodes, extract_options
+from gym_multi_treasure_game.exps.graph_utils import shortest_path_edges, find_nodes, extract_options, \
+    multiple_shortest_path_edges
 from s2s.utils import load, run_parallel
 
 
@@ -10,13 +11,16 @@ def find_plan(graph, source, target):
     """
     Return the set of options for the shortest path from source to target, or None if no path exists
     """
-    edges = shortest_path_edges(graph, source, target)
-    if edges is None:
-        return None
-    plan = list()
-    for edge in edges:
-        plan += extract_options(edge)
-    return plan
+    multipath = multiple_shortest_path_edges(graph, source, target)
+    if multipath is None:
+        return []
+    plans = []
+    for edges in multipath:
+        plan = list()
+        for edge in edges:
+            plan += extract_options(edge)
+        plans.append(plan)
+    return plans
 
 
 def is_match(graph, sources, targets, true_plan):
@@ -26,34 +30,52 @@ def is_match(graph, sources, targets, true_plan):
     """
     for source in sources:
         for target in targets:
-            plan = find_plan(graph, source, target)
-            if plan is not None and plan == true_plan:
-                return True
+            plans = find_plan(graph, source, target)
+            for plan in plans:
+                if plan == true_plan:
+                    return True
     return False
 
 
-def find_mapping(graph, truth, node):
+# def find_mapping(graph, truth, node):
+#     """
+#     Find the nodes in the current graph that correspond to the node in the ground truth graph
+#     """
+#     return find_nodes(truth.nodes[node]['state'], graph)
+#
+#
+
+def find_mapping(graph, link, clusterer):
     """
     Find the nodes in the current graph that correspond to the node in the ground truth graph
     """
-    return find_nodes(truth.nodes[node]['state'], graph)
+
+    def get_link(id, node):
+        if 'state' in node:
+            return clusterer.get(node['state'], index_only=True)
+
+    return [node for node in graph.nodes if get_link(node, graph.nodes[node]) == link]
 
 
-def _evaluate_plans(truth, graph, test_cases):
+def _evaluate_plans(truth, graph, clusterer, test_cases):
     count = 0
     for start, plan, end in test_cases:
 
-        sources = find_mapping(graph, truth, start)
-        targets = find_mapping(graph, truth, end)
+        start_link = clusterer.get(truth.nodes[start]['state'][0:3], index_only=True)
+        end_link = clusterer.get(truth.nodes[end]['state'][0:3], index_only=True)
+
+        sources = find_mapping(graph, start_link, clusterer)
+        targets = find_mapping(graph, end_link, clusterer)
 
         if is_match(graph, sources, targets, plan):
             count += 1
     return count
 
-def evaluate_plans(task, truth, graph, n_jobs=1):
-    test_cases = load('data/test_cases.pkl')[task]
+
+def evaluate_plans(test_cases, truth, graph, clusterer, n_jobs=1):
+    # test_cases = load('data/test_cases.pkl')[task]
     splits = np.array_split(test_cases, n_jobs)
-    functions = [partial(_evaluate_plans, truth, graph, split) for split in splits]
+    functions = [partial(_evaluate_plans, truth, graph, clusterer, split) for split in splits]
     ret = run_parallel(functions)
     count = sum(ret)
     return count / len(test_cases)
@@ -74,4 +96,3 @@ if __name__ == '__main__':
 
 def merge_graphs(A, B):
     pass
-

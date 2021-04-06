@@ -85,14 +85,16 @@ def _construct_graph(link, means, options):
     return graph
 
 
-def _get_random_path(graph, used):
+def _get_random_path(graph, used, length=-1):
     while True:
         start = random.choice(list(graph.nodes))
         end = random.choice(list(graph.nodes))
         if start == end or (start, end) in used:
             continue
         if nx.has_path(graph, start, end):
-            return nx.shortest_path(graph, start, end)
+            path = nx.shortest_path(graph, start, end)
+            if length == -1 or length >= len(path) - 1:
+                return path
 
 
 def _extract_plan(graph, path):
@@ -111,15 +113,20 @@ def _extract_plan(graph, path):
 
 if __name__ == '__main__':
 
-    np.random.seed(0)
-    random.seed(0)
-    test_cases = defaultdict(list)
-    for task in range_without(1, 11):
-        used = set()
-        graph = nx.read_gpickle("../data/ground_truth/graph_{}.pkl".format(task))
-        for _ in range(100):
-            path = _get_random_path(graph, used)
-            used.add((path[0], path[-1]))
-            test_cases[task].append((path[0], _extract_plan(graph, path), path[-1]))
+    for length in range(3, 7):
+        np.random.seed(0)
+        random.seed(0)
+        test_cases = defaultdict(list)
+        for task in range_without(1, 11):
+            print(task)
+            used = set()
+            graph = nx.read_gpickle("../data/ground_truth/graph_{}.pkl".format(task))
+            from gym_multi_treasure_game.exps.transfer.new_transfer import draw
+            draw(graph, True)
 
-    save(test_cases, '../data/test_cases.pkl')
+            for _ in range(100):
+                path = _get_random_path(graph, used, length=length)
+                used.add((path[0], path[-1]))
+                test_cases[task].append((path[0], _extract_plan(graph, path), path[-1]))
+
+        save(test_cases, '../data/{}_test_cases.pkl'.format(length))
