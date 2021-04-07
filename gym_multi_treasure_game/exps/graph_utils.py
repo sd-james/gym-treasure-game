@@ -19,8 +19,8 @@ KNN = load('/home/steve/PycharmProjects/gym-multi-treasure-game/gym_multi_treasu
 def extract_options(edge):
     if edge['level'] == 0:
         return [edge['action']]
-
-    raise NotImplementedError
+    return edge['action']
+    # raise NotImplementedError
 
 
 def multiple_shortest_path_edges(graph, source, target):
@@ -283,6 +283,8 @@ def get_edges_to_keep(graph, classifiers, transition_data, clusterer):
     seen = set()
     to_keep = defaultdict(list)
 
+    hierarchy_starts = defaultdict(list)
+    hierarchy_ends = defaultdict(list)
 
     for option, d, dprime, s, sprime in _iter(transition_data):
         start_link = clusterer.get(s, index_only=True)
@@ -290,6 +292,18 @@ def get_edges_to_keep(graph, classifiers, transition_data, clusterer):
         memo = dict()
         for u, v, a in graph.edges(data=True):
             if (u, v, start_link, end_link) in seen:
+                continue
+
+            # if is hierarchical option, verify that can execute each step of plan
+            if isinstance(a['action'], list):
+                start_refers = memo.get(u, _refers_to(d, classifiers[u]))
+                memo[u] = start_refers
+                if start_refers:
+                    hierarchy_starts[(u, v, Hashabledict(a))].append(s)
+                end_refers = memo.get(v, _refers_to(dprime, classifiers[v]))
+                memo[v] = end_refers
+                if end_refers:
+                    hierarchy_ends[(u, v, Hashabledict(a))].append(sprime)
                 continue
 
             if a['action'] != option:
@@ -303,9 +317,15 @@ def get_edges_to_keep(graph, classifiers, transition_data, clusterer):
             memo[v] = end_refers
             if not end_refers:
                 continue
+
             # if refers_to(d, dprime, u, v, classifiers):
             seen.add((u, v, start_link, end_link))
             to_keep[(u, v, Hashabledict(a))].append((s, sprime))
+
+    for (u, v, a), starts in hierarchy_starts.items():
+        if (u, v, a) in hierarchy_ends:
+            for s, sprime in zip(starts, hierarchy_ends[(u, v, a)]):
+                to_keep[(u, v, a)].append((s, sprime))
 
     return to_keep
 
@@ -319,6 +339,29 @@ def compute_mapping(current_graph, classifiers, to_keep):
             mapping[v] = find_similar_nodes(u, current_graph, classifiers)
     return mapping
 
+
+def verify_path(actions, u, v, graph):
+    for path in nx.all_simple_edge_paths(graph, u, v, cutoff=len(actions)):
+        acts = list()
+        for a, b in path:
+            temp = graph.edges[(a, b)]['action']
+            if isinstance(temp, list):
+                acts.extend(temp)
+            else:
+                acts.append(temp)
+        if acts == actions:
+            return True
+    return False
+
+
+def combine(dicts):
+    to_keep = defaultdict(list)
+    for d in dicts:
+        for key, value in d.items():
+            to_keep[key].extend(value)
+    return to_keep
+
+
 def merge(current_graph, previous_graph, transition_data, classifiers, n_jobs):
     # assume current graph already linked
     # use transition data to find nodes to transfer in.
@@ -331,13 +374,16 @@ def merge(current_graph, previous_graph, transition_data, classifiers, n_jobs):
         clusterer.add(s)
         clusterer.add(sprime)
     to_keep = None
+    hierarchy_saved = list()
     if previous_graph is not None:
         print("Finding edges...")
         time = now()
         splits = np.array_split(transition_data, n_jobs)
         functions = [partial(get_edges_to_keep, previous_graph, classifiers, data, clusterer) for data in splits]
         result = run_parallel(functions)
-        to_keep = dict(ChainMap(*result))
+        # to_keep = dict(ChainMap(*result))
+        to_keep = combine(result)
+
         print("Finding {} edges took {} ms".format(len(to_keep), now() - time))
 
         print("Finding mapping...")
@@ -346,6 +392,7 @@ def merge(current_graph, previous_graph, transition_data, classifiers, n_jobs):
         functions = [partial(compute_mapping, current_graph, classifiers, data) for data in splits]
         result = run_parallel(functions)
         mapping = dict(ChainMap(*result))
+
         print("Computing mapping took {} ms".format(now() - time))
 
         # mapping = dict()
@@ -358,6 +405,8 @@ def merge(current_graph, previous_graph, transition_data, classifiers, n_jobs):
         print("Integrating to graph...")
         time = now()
         added = set()
+        to_check = set()  # abstract options to check if valid
+
         for (u, v, edge), states in tqdm(to_keep.items()):
             for s, sprime in states:
                 start_link = clusterer.get(s, index_only=True)
@@ -386,10 +435,22 @@ def merge(current_graph, previous_graph, transition_data, classifiers, n_jobs):
                         current_graph.add_node("{}:{}".format(v, end_link), **previous_graph.nodes[v])
                 for a in start_nodes:
                     for b in end_nodes:
-                        current_graph.add_edge(a, b, **edge)
+                        if not isinstance(edge['action'], list):
+                            current_graph.add_edge(a, b, **edge)
+                        else:
+                            to_check.add((a, b, edge))
+
+        # check that the hierarchical options were linked up
+        for a, b, edge in to_check:
+            if verify_path(edge['action'], a, b, current_graph):
+                current_graph.add_edge(a, b, **edge)
+                hierarchy_saved.append((a, b, edge))
+
+        print("Found {} higher-order edges".format(len(hierarchy_saved)))
+
         print("Integrating took {} ms".format(now() - time))
 
-    return current_graph, clusterer, to_keep
+    return current_graph, clusterer, to_keep, hierarchy_saved
     # current_predicates = extract_predicates(current_graph)
     # prev_predicates = extract_predicates(previous_graph)
     # new_to_old = defaultdict(list)
