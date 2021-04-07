@@ -66,6 +66,7 @@ def extract_episodes_required(baseline, total_data, samples=None):
     record = _extract_baseline_episodes_required(baseline, samples=samples)
     for data in total_data:
         for i, (task, values) in enumerate(data.items()):
+            print('{} = {}'.format(i, task))
             if i == 0:
                 continue
             for (experiment, n_episodes, score) in values:
@@ -74,6 +75,8 @@ def extract_episodes_required(baseline, total_data, samples=None):
                     if samples is not None:
                         n_episodes = samples[(experiment, task, n_episodes)]
                     record.append([i, n_episodes, "Transfer"])
+                    # record.append([i, n_episodes, "Transfer"])
+
                     break
     col_name = 'Number of {}'.format('samples' if samples is not None else 'episodes')
     return pd.DataFrame(record, columns=['Number of tasks', col_name, "Type"])
@@ -82,7 +85,7 @@ def extract_episodes_required(baseline, total_data, samples=None):
 def load_data(base_dir):
     recorders = list()
     for dir, file in files_in_dir(base_dir):
-        if 'nsamples' not in file:
+        if file.startswith('ntrans'):
             recorder, _ = load(make_path(dir, file))
             recorder = extract_ordered(recorder)
             recorders.append(recorder)
