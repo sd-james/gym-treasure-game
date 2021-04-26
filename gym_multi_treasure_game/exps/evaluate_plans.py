@@ -7,11 +7,11 @@ from gym_multi_treasure_game.exps.graph_utils import shortest_path_edges, find_n
 from s2s.utils import load, run_parallel
 
 
-def find_plan(graph, source, target):
+def find_plan(graph, source, target, optimal_length):
     """
     Return the set of options for the shortest path from source to target, or None if no path exists
     """
-    multipath = multiple_shortest_path_edges(graph, source, target)
+    multipath = multiple_shortest_path_edges(graph, source, target, optimal_length)
     if multipath is None:
         return []
     plans = []
@@ -19,7 +19,8 @@ def find_plan(graph, source, target):
         plan = list()
         for edge in edges:
             plan += extract_options(edge)
-        plans.append(plan)
+        if len(plan) <= optimal_length:
+            plans.append(plan)
     return plans
 
 
@@ -30,7 +31,7 @@ def is_match(graph, sources, targets, true_plan):
     """
     for source in sources:
         for target in targets:
-            plans = find_plan(graph, source, target)
+            plans = find_plan(graph, source, target, len(true_plan))
             for plan in plans:
                 if plan == true_plan:
                     return True
@@ -59,7 +60,7 @@ def find_mapping(graph, link, clusterer):
 
 def _evaluate_plans(truth, graph, clusterer, test_cases):
     count = 0
-    for start, plan, end in test_cases:
+    for k, (start, plan, end) in enumerate(test_cases):
 
         start_link = clusterer.get(truth.nodes[start]['state'][0:3], index_only=True)
         end_link = clusterer.get(truth.nodes[end]['state'][0:3], index_only=True)
@@ -69,6 +70,7 @@ def _evaluate_plans(truth, graph, clusterer, test_cases):
 
         if is_match(graph, sources, targets, plan):
             count += 1
+            # print("GOT {}".format(k))
     return count
 
 

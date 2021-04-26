@@ -1,29 +1,23 @@
 import random
-import traceback
-from collections import defaultdict
 
 import matplotlib.pyplot as plt
-from tqdm import tqdm, trange
+import networkx as nx
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
 
 from gym_multi_treasure_game.envs.configs import CONFIG
-from gym_multi_treasure_game.exps.baseline.generate_test_cases import _get_random_path, _extract_plan
-from gym_multi_treasure_game.exps.eval2 import build_graph, evaluate_n_step, __get_pos
 from gym_multi_treasure_game.envs.mock_env import MockTreasureGame
-from gym_multi_treasure_game.envs.multi_treasure_game import MultiTreasureGame
-from gym_multi_treasure_game.envs.pca.base_pca import PCA_STATE, PCA_INVENTORY
+from gym_multi_treasure_game.exps.eval2 import __get_pos
 from gym_multi_treasure_game.exps.evaluate_plans import evaluate_plans
-from gym_multi_treasure_game.exps.graph_utils import merge, clean, clean_and_fit, extract_pairs, merge_and_clean
-from pyddl.hddl.hddl_domain import HDDLDomain
+from gym_multi_treasure_game.exps.graph_utils import merge, clean_and_fit, merge_and_clean
+from gym_multi_treasure_game.exps.hierarchy_transfer.generate_hierarchy import compute_hierarchical_graph
 from pyddl.pddl.domain import Domain
 from s2s.env.s2s_env import View
 from s2s.hierarchy.discover_hddl_methods import discover_hddl_tasks
-from s2s.planner.mgpt_planner import mGPT
 from s2s.portable.build_model_transfer import build_transfer_model
 from s2s.portable.transfer import extract, _unexpand_macro_operator
 from s2s.utils import make_path, save, load, Recorder, now, range_without, exists
-import numpy as np
-import networkx as nx
-import pandas as pd
 
 
 def build_abstractions(domain):
@@ -128,14 +122,7 @@ def get_valid_exp(dir, task):
 
 if __name__ == '__main__':
 
-    # import argparse
-    #
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("seed")
-    # args = parser.parse_args()
-
     length = 3
-    # seed = int(args.seed)
     seed = 0
     random.seed(seed)
     np.random.seed(seed)
@@ -170,16 +157,16 @@ if __name__ == '__main__':
 
     start = now()
 
-    for task_count, task in tqdm(enumerate(tasks)):
+    for task_count, task in tqdm(enumerate(tasks), desc="Tasks"):
 
         print("TIME: {}".format(now() - start))
 
         experiment = get_valid_exp(dir, task)
-        baseline_ep, baseline_score = get_best(baseline, experiment, task)
-        ground_truth = nx.read_gpickle(make_path(base_dir, 'ground_truth', 'graph_{}.pkl'.format(task)))
 
         print("DOING {} {}".format(experiment, task))
 
+        baseline_ep, baseline_score = get_best(baseline, experiment, task)
+        ground_truth = nx.read_gpickle(make_path(base_dir, 'ground_truth', 'graph_{}.pkl'.format(task)))
 
         best_score = -np.inf
         best_domain = None
@@ -192,15 +179,27 @@ if __name__ == '__main__':
             graph_path = make_path(save_dir, "pred_edge_info_graph_{}_{}_{}.pkl".format(experiment, task, n_episodes))
             assert exists(graph_path)
             graph = nx.read_gpickle(graph_path)
+
+            graph = compute_hierarchical_graph(graph, max_length=4, reduce_graph=3, subgoal_method='voterank')
+
             original_graph = graph.copy()
 
             data = pd.read_pickle(make_path(save_dir, "transition.pkl"), compression='gzip')
-            graph, clusterer, to_keep, _ = merge(graph, previous_graph, data, classifiers, n_jobs=20)
+            graph, clusterer, to_keep, saved_hierarchy = merge(graph, previous_graph, data, classifiers, n_jobs=20)
 
             # draw(graph, False)
             # draw(ground_truth, True)
 
             # raw_score, stats = 0.1, None
+
+            # draw(graph, False)
+            # draw(nx.read_gpickle(graph_path), False)
+            # print(evaluate_plans(test_cases[task], ground_truth, nx.read_gpickle(graph_path), clusterer, n_jobs=1))
+            # print()
+            # print(evaluate_plans(test_cases[task], ground_truth, graph, clusterer, n_jobs=1))
+
+            # exit(0)
+            # print(evaluate_plans(test_cases[task], ground_truth, nx.read_gpickle(graph_path), clusterer, n_jobs=20))
 
             raw_score = evaluate_plans(test_cases[task], ground_truth, graph, clusterer, n_jobs=20)
             stats = None
@@ -208,7 +207,7 @@ if __name__ == '__main__':
             score = raw_score / baseline_score
             print(n_episodes, raw_score, score, baseline.get_score(experiment, task, n_episodes))
 
-            all_stats.record(experiment, task, n_episodes, (to_keep, graph))
+            all_stats.record(experiment, task, n_episodes, (to_keep, graph, saved_hierarchy))
 
             recorder.record(experiment, (task_count, task), n_episodes, score)
             # print(
@@ -253,5 +252,5 @@ if __name__ == '__main__':
         print('Merging took {} ms'.format(now() - time))
 
     save(recorder, )
-    save((recorder, transfer_recorder), make_path(base_dir, 'ntransfer_results_{}.pkl'.format(seed)))
-    save(all_stats, make_path(base_dir, 'transfer_stats_{}.pkl'.format(seed)))
+    save((recorder, transfer_recorder), make_path(base_dir, 'hierarchy_transfer_results_{}.pkl'.format(seed)))
+    save(all_stats, make_path(base_dir, 'hierarchy_transfer_stats_{}.pkl'.format(seed)))

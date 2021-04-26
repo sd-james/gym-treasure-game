@@ -61,7 +61,8 @@ def load_data(base_dir):
             task_orders[get_seed(file)] = task_order
 
     recorders = list()
-    for dir, file in files_in_dir(base_dir):
+    count = 0
+    for dir, file in tqdm(files_in_dir(base_dir)):
 
         if 'stats_' in file:
             print('.', end='', flush=True)
@@ -69,7 +70,10 @@ def load_data(base_dir):
             recorder = extract_ordered(recorder, task_orders[get_seed(file)])
             recorders.append(recorder)
 
-            # break
+            count += 1
+            # if count > 3:
+            #     break
+
     return recorders
 
 
@@ -146,7 +150,8 @@ def extract_node_data(total_data):
         for i, (task, values) in enumerate(data.items()):
             n_episodes, to_keep, graph = values[-1]
             nodes = get_nodes_copied(to_keep, graph)
-            record.append([i, nodes, nodes / len(graph.nodes), "Transfer"])
+            record.append([i, nodes, nodes / len(graph.nodes), "From previous tasks"])
+            record.append([i, len(graph.nodes) - nodes, 1 - nodes / len(graph.nodes), "From current task"])
     return pd.DataFrame(record, columns=['Number of tasks', 'Number of nodes', 'Proportion of nodes', "Type"])
 
 
@@ -156,24 +161,34 @@ def extract_predicate_data(total_data):
         for i, (task, values) in enumerate(data.items()):
             n_episodes, to_keep, graph = values[-1]
             predicates, all_predicates = get_predicates_copied(to_keep, graph)
-            record.append([i, predicates, predicates / all_predicates, "Transfer"])
+            record.append([i, predicates, predicates / all_predicates, "From previous tasks"])
+            record.append([i, predicates, 1 - predicates / all_predicates, "From current task"])
     return pd.DataFrame(record, columns=['Number of tasks', 'Number of predicates', 'Proportion of predicates', "Type"])
 
 
 def plot_predicates(data):
     data = extract_predicate_data(data)
-    sns.lineplot(x="Number of tasks", y='Number of predicates', hue="Type", data=data)
-    plt.show()
-    sns.lineplot(x="Number of tasks", y='Proportion of predicates', hue="Type", data=data)
+    #
+    # save(data)
+    # exit(0)
+    sns.set(style="whitegrid")
+    # sns.lineplot(x="Number of tasks", y='Number of predicates', hue="Type", data=data)
+    # plt.show()
+    # sns.barplot(x="day", y="total_bill", hue="sex", data=tips)
+    sns.barplot(x="Number of tasks", y='Proportion of predicates', hue="Type", data=data)
+    # sns.lineplot(x="Number of tasks", y='Proportion of predicates', hue="Type", data=data)
+    plt.savefig('predicate_transfer.pdf')
     plt.show()
 
 
 def plot_nodes(data):
     data = extract_node_data(data)
-    sns.lineplot(x="Number of tasks", y='Number of nodes', hue="Type", data=data)
+    # sns.lineplot(x="Number of tasks", y='Number of nodes', hue="Type", data=data)
+    sns.histplot(x="Number of tasks", y='Number of nodes', hue="Type", data=data, multiple="stack")
+
     plt.show()
-    sns.lineplot(x="Number of tasks", y='Proportion of nodes', hue="Type", data=data)
-    plt.show()
+    # sns.lineplot(x="Number of tasks", y='Proportion of nodes', hue="Type", data=data)
+    # plt.show()
 
 
 def plot_edges(data):
@@ -190,10 +205,13 @@ if __name__ == '__main__':
     random.seed(seed)
     np.random.seed(seed)
 
+    # data = load()
+
     base_dir = '../data'
 
     data = load_data('../data/transfer_results')
     plot_predicates(data)
+    exit(0)
     plot_nodes(data)
     plot_edges(data)
 

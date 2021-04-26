@@ -131,8 +131,12 @@ def show_histos(graphs, title):
         return A
 
     data = list()
-    to_skip = {3, 5}
-    to_skip.clear()
+    to_skip = set()
+    if len(graphs) >= 4:
+        to_skip.add(3)
+    if len(graphs) >= 5:
+        to_skip.add(4)
+    # to_skip.clear()
     for level, graph in graphs.items():
         if level + 1 in to_skip:
             continue
@@ -141,9 +145,9 @@ def show_histos(graphs, title):
     data = pd.DataFrame(data, columns=['Optimal path length', 'Max abstraction level'])
     sns.set(style="whitegrid")
     sns.displot(data, x="Optimal path length", hue="Max abstraction level", binwidth=1, element="step")
-    # plt.savefig('xxx.pdf')
-    plt.title(title)
-    plt.show()
+    plt.savefig('{}.pdf'.format(title))
+    # plt.title(title)
+    # plt.show()
     # exit(0)
 
 
@@ -153,7 +157,8 @@ def load_graph(task, experiment=None):
             experiment = np.random.randint(10)
             try:
                 base_dir = 'data'
-                baseline = load(make_path(base_dir, 'baseline.pkl'))
+                baseline, _ = load(make_path(base_dir, '{}_ntransfer_results.pkl'.format(3)))
+                # baseline = load(make_path(base_dir, 'baseline.pkl'))
                 baseline_ep, baseline_score = get_best(baseline, experiment, task)
                 dir = '/media/hdd/treasure_data'
                 save_dir = make_path(dir, task, experiment, baseline_ep)
@@ -246,36 +251,10 @@ def link(graphs):
 
 if __name__ == '__main__':
 
-    graphs = [load_graph(i) for i in range_without(1, 11, 3)]
-    graphs = [load_graph(i) for i in range_without(1, 3)]
-    C = link(graphs)
-    original_graph_per_level, graphs_per_level = compute_hierarchical_options(C, max_length=4,
-                                                                              reduce_graph=2,
-                                                                              subgoal_method='voterank',
-                                                                              verbose=True)
-    show_histos(original_graph_per_level, "Task {}")
-    exit(0)
-    A = load_graph(1, 0)
-    # draw(A, False)
-    B = load_graph(2, 0)
-    # draw(B, False)
-    C = link([A, B])
-    original_graph_per_level, graphs_per_level = compute_hierarchical_options(C, max_length=4,
-                                                                              reduce_graph=3,
-                                                                              subgoal_method='voterank',
-                                                                              verbose=True)
-    show_histos(original_graph_per_level, "Task {}")
-    exit(0)
-
-    for task in range(1, 11):
-        for exp in range(10):
-            graph = load_graph(task, exp)
-            if graph is None:
-                continue
-            print("IN {}".format(exp))
-            draw(graph, False)
-            original_graph_per_level, graphs_per_level = compute_hierarchical_options(graph, max_length=4,
-                                                                                      reduce_graph=3,
-                                                                                      subgoal_method='voterank',
-                                                                                      verbose=True)
-            show_histos(original_graph_per_level, "Task {}, Exp {}".format(task, exp))
+    for i in range(1,11):
+        graph = load_graph(i)
+        original_graph_per_level, graphs_per_level = compute_hierarchical_options(graph, max_length=4,
+                                                                                  reduce_graph=3,
+                                                                                  subgoal_method='voterank',
+                                                                                  verbose=True)
+        show_histos(original_graph_per_level, "Task{}".format(i))

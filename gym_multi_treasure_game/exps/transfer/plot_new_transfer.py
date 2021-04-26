@@ -1,6 +1,6 @@
 import random
 import traceback
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 import matplotlib.pyplot as plt
 from tqdm import tqdm, trange
@@ -27,8 +27,11 @@ import networkx as nx
 import pandas as pd
 import seaborn as sns
 
+POSITIONS = defaultdict(list)
+
 
 def extract_ordered(recorder):
+    global POSITIONS
     data = defaultdict(list)
     task_order = dict()
     for experiment, A in recorder.items():
@@ -37,13 +40,17 @@ def extract_ordered(recorder):
             for n_episodes, score in B.items():
                 data[task_count].append((experiment, n_episodes, score))
     data = dict(sorted(data.items()))
-    new_data = dict()
+    new_data = OrderedDict()
     for task_count, values in data.items():
         new_data[task_order[task_count]] = values
+
+    for i, task in task_order.items():
+        POSITIONS[task].append(i)
+
     return new_data
 
 
-def _extract_baseline_episodes_required(baseline, samples=None):
+def _extract_baseline_episodes_required(baseline, samples=None, cumulative=False):
     record = list()
 
     for experiment in range(10):
@@ -62,18 +69,32 @@ def _extract_baseline_episodes_required(baseline, samples=None):
     return record
 
 
-def extract_episodes_required(baseline, total_data, samples=None):
-    record = _extract_baseline_episodes_required(baseline, samples=samples)
+def extract_episodes_required(baseline, total_data, samples=None, cumulative=False):
+    record = _extract_baseline_episodes_required(baseline, samples=samples, cumulative=cumulative)
+    # record = list()
+
     for data in total_data:
+        sum = 0
         for i, (task, values) in enumerate(data.items()):
             print('{} = {}'.format(i, task))
+
             if i == 0:
                 continue
+
             for (experiment, n_episodes, score) in values:
                 if score >= 1:
-                    # record.append([i, baseline_ep, "No Transfer"])
+
+                    # for j in range(10):
+                    #     baseline_ep, baseline_score = get_best(baseline, experiment, task)
+                    #     record.append([j, baseline_ep, "No Transfer"])
+
                     if samples is not None:
                         n_episodes = samples[(experiment, task, n_episodes)]
+
+                    if cumulative:
+                        sum += n_episodes
+                        n_episodes = sum
+
                     record.append([i, n_episodes, "Transfer"])
                     # record.append([i, n_episodes, "Transfer"])
 
@@ -82,13 +103,18 @@ def extract_episodes_required(baseline, total_data, samples=None):
     return pd.DataFrame(record, columns=['Number of tasks', col_name, "Type"])
 
 
-def load_data(base_dir):
+def load_data(base_dir, with_file=False):
     recorders = list()
     for dir, file in files_in_dir(base_dir):
         if file.startswith('ntrans'):
             recorder, _ = load(make_path(dir, file))
             recorder = extract_ordered(recorder)
-            recorders.append(recorder)
+            if with_file:
+                recorders.append((make_path(dir, file), recorder))
+            else:
+                recorders.append(recorder)
+
+    # print("Got {}".format(len(recorders)))
     return recorders
 
 
@@ -132,9 +158,21 @@ if __name__ == '__main__':
         samples = get_n_samples(base_dir)
 
     data = load_data('../data/transfer_results')
+
+    # for task, v in POSITIONS.items():
+    #     plt.hist(v)
+    #     plt.title(str(task))
+    #     plt.show()
+    #     plt.clf()
+    #     print(task, np.mean(v))
+    # exit(0)
+    sns.set(style="whitegrid")
+
     data = extract_episodes_required(baseline, data, samples=samples)
     sns.lineplot(x="Number of tasks", y="Number of {}".format('episodes' if X_AXIS_EPISODES else 'samples'), hue="Type",
                  data=data)
+    plt.savefig("efficiency.pdf")
+
     plt.show()
 
     exit(0)
@@ -161,6 +199,8 @@ if __name__ == '__main__':
 
     data = extract_episodes_required(data)
     sns.lineplot(x="Number of tasks", y="Number of episodes", hue="Type", data=data)
+    plt.savefig("efficiency.pdf")
+
     plt.show()
 
     exit(0)
@@ -179,6 +219,7 @@ if __name__ == '__main__':
 
     data = pd.DataFrame(record, columns=['Number of episodes', 'Score', "Tasks Seen"])
     sns.lineplot(x="Number of episodes", y="Score", hue="Tasks Seen", data=data)
+    plt.savefig("efficiency.pdf")
     plt.show()
     # for experiment, A in recorder.items():
     #     for (task_count, task), B in A.items():

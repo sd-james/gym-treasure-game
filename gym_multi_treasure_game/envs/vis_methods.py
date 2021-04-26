@@ -574,6 +574,138 @@ def fff(env):
 ########################################### LEVEL 3 ##############################################################
 
 
+def _g_1(env):
+    """
+	(:method m-down_left_option-down_left_option-Level-2-2-57bbec5f-a447-48f2-a53f-07d7399aa949
+		:parameters ()
+		:task (down_left_option-down_left_option-Level-2)
+		:precondition (and (symbol_24) (symbol_1) (notfailed) (psymbol_13))
+		:ordered-tasks (and (down_right_option-jump_left_option-Level-1) (down_left_option-go_left_option-down_ladder_option-Level-1))
+	)
+	[3, 0, 5, 7, 5, 0, 3]
+    """
+    plan = [1, 1]
+    new_plan = [3, 0, 5, 7]
+    return run(env, plan, new_plan)
+
+
+def _g_2(env):
+    """
+	(:method m-down_left_option-down_left_option-Level-2-2-57bbec5f-a447-48f2-a53f-07d7399aa949
+		:parameters ()
+		:task (down_left_option-down_left_option-Level-2)
+		:precondition (and (symbol_24) (symbol_1) (notfailed) (psymbol_13))
+		:ordered-tasks (and (down_right_option-jump_left_option-Level-1) (down_left_option-go_left_option-down_ladder_option-Level-1))
+	)
+	[3, 0, 5, 7, 5, 0, 3]
+    """
+    plan = [1, 1, 3, 0, 5, 7]
+    new_plan = [5, 0, 3]
+    return run(env, plan, new_plan)
+
+def _g_3(env):
+    """
+	(:method m-down_left_option-down_left_option-Level-2-2-57bbec5f-a447-48f2-a53f-07d7399aa949
+		:parameters ()
+		:task (down_left_option-down_left_option-Level-2)
+		:precondition (and (symbol_24) (symbol_1) (notfailed) (psymbol_13))
+		:ordered-tasks (and (down_right_option-jump_left_option-Level-1) (down_left_option-go_left_option-down_ladder_option-Level-1))
+	)
+	[3, 0, 5, 7, 5, 0, 3]
+    """
+    plan = [1, 1]
+    new_plan = [3]
+    return run(env, plan, new_plan)
+
+def _g_4(env):
+    """
+	(:method m-down_left_option-down_left_option-Level-2-2-57bbec5f-a447-48f2-a53f-07d7399aa949
+		:parameters ()
+		:task (down_left_option-down_left_option-Level-2)
+		:precondition (and (symbol_24) (symbol_1) (notfailed) (psymbol_13))
+		:ordered-tasks (and (down_right_option-jump_left_option-Level-1) (down_left_option-go_left_option-down_ladder_option-Level-1))
+	)
+	[3, 0, 5, 7, 5, 0, 3]
+    """
+    plan = [1, 1, 3]
+    new_plan = [0]
+    return run(env, plan, new_plan)
+
+
+def _g_5(env):
+    """
+	(:method m-down_left_option-down_left_option-Level-2-2-57bbec5f-a447-48f2-a53f-07d7399aa949
+		:parameters ()
+		:task (down_left_option-down_left_option-Level-2)
+		:precondition (and (symbol_24) (symbol_1) (notfailed) (psymbol_13))
+		:ordered-tasks (and (down_right_option-jump_left_option-Level-1) (down_left_option-go_left_option-down_ladder_option-Level-1))
+	)
+	[3, 0, 5, 7, 5, 0, 3]
+    """
+    plan = [1, 1, 3, 0]
+    new_plan = [5]
+    return run(env, plan, new_plan)
+
+
+def _g_6(env):
+    """
+	(:method m-down_left_option-down_left_option-Level-2-2-57bbec5f-a447-48f2-a53f-07d7399aa949
+		:parameters ()
+		:task (down_left_option-down_left_option-Level-2)
+		:precondition (and (symbol_24) (symbol_1) (notfailed) (psymbol_13))
+		:ordered-tasks (and (down_right_option-jump_left_option-Level-1) (down_left_option-go_left_option-down_ladder_option-Level-1))
+	)
+	[3, 0, 5, 7, 5, 0, 3]
+    """
+    plan = [1, 1, 3, 0, 5]
+    new_plan = [7]
+    return run(env, plan, new_plan)
+
+
+def _g_7(env):
+    """
+	(:method m-down_left_option-down_left_option-Level-2-2-57bbec5f-a447-48f2-a53f-07d7399aa949
+		:parameters ()
+		:task (down_left_option-down_left_option-Level-2)
+		:precondition (and (symbol_24) (symbol_1) (notfailed) (psymbol_13))
+		:ordered-tasks (and (down_right_option-jump_left_option-Level-1) (down_left_option-go_left_option-down_ladder_option-Level-1))
+	)
+	[3, 0, 5, 7, 5, 0, 3]
+    """
+    plan = [1, 1, 3, 0, 5, 7]
+    new_plan = [5]
+    return run(env, plan, new_plan)
+
+
+def _g_8(env):
+    """
+	(:method m-down_left_option-down_left_option-Level-2-2-57bbec5f-a447-48f2-a53f-07d7399aa949
+		:parameters ()
+		:task (down_left_option-down_left_option-Level-2)
+		:precondition (and (symbol_24) (symbol_1) (notfailed) (psymbol_13))
+		:ordered-tasks (and (down_right_option-jump_left_option-Level-1) (down_left_option-go_left_option-down_ladder_option-Level-1))
+	)
+	[3, 0, 5, 7, 5, 0, 3]
+    """
+    plan = [1, 1, 3, 0, 5, 7, 5]
+    new_plan = [0]
+    return run(env, plan, new_plan)
+
+def _g_9(env):
+    """
+	(:method m-down_left_option-down_left_option-Level-2-2-57bbec5f-a447-48f2-a53f-07d7399aa949
+		:parameters ()
+		:task (down_left_option-down_left_option-Level-2)
+		:precondition (and (symbol_24) (symbol_1) (notfailed) (psymbol_13))
+		:ordered-tasks (and (down_right_option-jump_left_option-Level-1) (down_left_option-go_left_option-down_ladder_option-Level-1))
+	)
+	[3, 0, 5, 7, 5, 0, 3]
+    """
+    plan = [1, 1, 3, 0, 5, 7, 5, 0]
+    new_plan = [3]
+    return run(env, plan, new_plan)
+
+
 def g(env):
     """
 	(:method m-down_left_option-down_left_option-Level-2-2-57bbec5f-a447-48f2-a53f-07d7399aa949
@@ -789,7 +921,7 @@ if __name__ == '__main__':
     functions = []
     for key, value in list(locals().items()):
         if callable(value) and value.__module__ == __name__:
-            if key[0] == '_':
+            if key[0] == '_' and key[1] == 'g':
                 # if len(key) <= 3 and key != 'run':
                 functions.append(value)
 
